@@ -3,8 +3,8 @@
  "short_name": "C4ny_Shop",
  "start_url": "./index.html",
  "display": "standalone",
- "background_color": "#FBF6F0",
- "theme_color": "#9A7690",
+ "background_color": "#FFF7EE",
+ "theme_color": "#A63FBF",
  "icons": [
   {
    "src": "icon-192.png",
