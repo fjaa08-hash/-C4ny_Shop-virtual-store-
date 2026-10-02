@@ -3,8 +3,8 @@
 <style>
 :root{--pd:#7A1F95}*{box-sizing:border-box}body{margin:0;font-family:Sora,system-ui,sans-serif;background:#FFF7EE;color:#111;padding-bottom:96px}
 header{text-align:center;padding:20px 16px 18px;background:linear-gradient(140deg,#FFF6EA,#F7DDBB);box-shadow:0 2px 0 #FF8CF3,0 6px 20px rgba(214,70,255,.55)}
-header img{width:104px;height:104px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 14px #E04BFF}
-h1{font:400 32px 'Abril Fatface',serif;margin:8px 0 4px;background:linear-gradient(120deg,#7A1F95,#A63FBF,#8E2FA8);-webkit-background-clip:text;background-clip:text;color:transparent}
+header img{width:min(440px,92vw);height:auto;aspect-ratio:1;object-fit:contain;border-radius:14px;border:3px solid #fff;box-shadow:0 0 0 2px #FF8CF3,0 0 18px #E04BFF,0 0 34px rgba(194,27,255,.45);display:block;margin:0 auto}
+h1{font:400 34px 'Abril Fatface',serif;margin:8px 0 4px;background:linear-gradient(120deg,#7A1F95,#A63FBF,#8E2FA8);-webkit-background-clip:text;background-clip:text;color:transparent}
 .neon{display:inline-block;font:700 21px 'Dancing Script',cursive;color:#FFE3FB;background:#2B0A3D;border:1.5px solid #FF7BF0;border-radius:20px;padding:0 14px 2px;text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF;box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65)}
 .chips{display:flex;gap:8px;overflow-x:auto;padding:14px 16px 0;max-width:900px;margin:auto}.chip{flex:none;border:1.5px solid #C96BE0;background:#fff;color:#7A1F95;font-weight:700;font-size:13px;padding:8px 14px;border-radius:20px}.chip.on{background:#2B0A3D;color:#FFE3FB;border-color:#FF7BF0;box-shadow:0 0 10px rgba(240,75,255,.8)}select{width:100%;padding:8px;border:1.5px solid #EBC9A0;border-radius:10px;font:inherit;font-size:12.5px;background:#fff}.ql{display:flex;align-items:center;gap:6px}.ql button{width:28px;height:28px;border-radius:50%;border:1.5px solid #A63FBF;background:#fff;color:#7A1F95;font-weight:700}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:16px;max-width:900px;margin:auto}@media(min-width:700px){.grid{grid-template-columns:repeat(4,1fr)}}
 .card{background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 2px 10px rgba(122,31,149,.12);display:flex;flex-direction:column}
@@ -22,7 +22,7 @@ input,textarea{width:100%;padding:12px;border:1.5px solid #EBC9A0;border-radius:
 .info{background:#FBE6CC;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.5;margin-bottom:10px}.ln{display:flex;justify-content:space-between;font-size:14px;padding:4px 0}
 .tot{font-size:20px;font-weight:700;color:var(--pd)}
 </style></head><body>
-<header><img src="__LOGO__" alt="C4ny_Shop virtual store"><h1>C4ny_Shop</h1><div class="neon">virtual store</div></header>
+<header><img src="logo_c4ny_shop.jpg" alt="C4ny_Shop virtual store"><h1>C4ny_Shop</h1><div class="neon">virtual store</div></header>
 <div id="chips" class="chips"></div><div class="grid" id="grid"><p style="grid-column:1/-1;text-align:center;color:#6B6B6B">Cargando catálogo…</p></div>
 <button id="bar" onclick="openCart()"><span id="bn"></span><span id="bt"></span></button>
 <div id="sheet"><div class="box" id="box"></div></div>
