@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function esDuena() {
+      return request.auth != null && request.auth.token.email == 'candyzgoitia1@gmail.com';
+    }
+    // Datos privados de la app (clientes, ventas, inventario)
+    match /tiendas/{docId} { allow read, write: if esDuena(); }
+    // Catálogo público: todos lo ven, solo la dueña lo cambia
+    match /catalogo/{id} { allow read: if true; allow write: if esDuena(); }
+    // Pedidos: cualquiera puede crear uno nuevo; solo la dueña los ve y gestiona
+    match /pedidos/{id} {
+      allow create: if request.resource.data.status == 'nuevo'
+        && request.resource.data.items is list
+        && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 40
+        && request.resource.data.total is number
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80
+        && request.resource.data.keys().hasOnly(['status','name','phone','note','items','total','method','ref','proof','createdAt']);
+      allow read, update, delete: if esDuena();
+    }
+  }
+}

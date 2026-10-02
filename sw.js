@@ -1,5 +1,5 @@
 // C4ny_Shop — service worker v2 (red primero: siempre intenta cargar la versión más nueva)
-const CACHE = 'c4ny-shop-v3';
+const CACHE = 'c4ny-shop-v4';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => {
   e.waitUntil(
