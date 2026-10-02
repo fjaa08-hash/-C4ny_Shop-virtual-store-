@@ -516,7 +516,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v4.1 excel</span> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5 categorías</span> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -628,6 +628,14 @@
         <div class="field" style="margin-bottom:0; max-width:80px;">
           <input id="newProductStock" type="number" inputmode="numeric" placeholder="Stock">
         </div>
+      </div>
+      <div class="row2" style="margin-top:8px;">
+        <div class="field" style="margin-bottom:0;"><select id="newProductCategory" style="width:100%;padding:12px;border:1.5px solid var(--line);border-radius:12px;font:inherit;background:#fff;"></select></div>
+        <div class="field" style="margin-bottom:0; max-width:130px;"><button type="button" class="btn-main secondary" onclick="C4nyShopApp.addCategory()" style="margin:0;padding:12px 8px;">+ Categoría</button></div>
+      </div>
+      <div class="row2" style="margin-top:8px;">
+        <div class="field" style="margin-bottom:0;"><input id="newProductModel" placeholder="Modelo (opcional)"></div>
+        <div class="field" style="margin-bottom:0; max-width:130px;"><input id="newProductMl" type="number" inputmode="numeric" placeholder="ml (perfumes/cremas)"></div>
       </div>
       <div class="row2" style="margin-top:8px;">
         <div class="field" style="margin-bottom:0;">
@@ -819,6 +827,11 @@ let pendingLocalPush = false;
   let services = [];
   let products = [];
   let orders = [];
+  const CAT_DEFAULT = ['Calzado','Ropa de damas','Ropa de caballeros','Perfumes y colonias','Cremas'];
+  let categories = CAT_DEFAULT.slice();
+  async function saveCategories(){ try{ await window.storage.set('categories', JSON.stringify(categories), false); }catch(e){} pushToCloud(); }
+  function fillCategorySelect(){ const el = $('newProductCategory'); if (!el) return; const cur = el.value; el.innerHTML = categories.map(c => `<option>${escH(c)}</option>`).join(''); if (categories.includes(cur)) el.value = cur; }
+  async function addCategory(){ const n = (prompt('Nombre de la nueva categoría:') || '').trim(); if (!n) return; if (!categories.some(c => c.toLowerCase() === n.toLowerCase())){ categories.push(n); await saveCategories(); } fillCategorySelect(); $('newProductCategory').value = categories.find(c => c.toLowerCase() === n.toLowerCase()); }
   let editingClientId = null;
   let quickAddFromPay = false;
 
@@ -881,7 +894,7 @@ let pendingLocalPush = false;
       const cur = new Set();
       for (const p of products){
         cur.add(p.id);
-        const pub = { name:p.name, price:p.price, stock:p.stock, size:p.size||'', color:p.color||'', image:p.image||'' };
+        const pub = { name:p.name, price:p.price, stock:p.stock, size:p.size||'', color:p.color||'', model:p.model||'', ml:p.ml||0, category:p.category||'Otros', catIdx:Math.max(categories.indexOf(p.category),0), image:p.image||'' };
         const h = JSON.stringify(pub);
         if (pubCache[p.id] !== h){ await setDoc(doc(cloudDb,'catalogo',p.id), pub); pubCache[p.id] = h; pubIds.add(p.id); }
       }
@@ -897,7 +910,7 @@ let pendingLocalPush = false;
     try{
       const ref = doc(cloudDb, ...SALON_DOC);
       await setDoc(ref, {
-        clients, payments, services, products,
+        clients, payments, services, products, categories,
         updatedAt: new Date().toISOString()
       });
       publishCatalog();
@@ -936,6 +949,7 @@ let pendingLocalPush = false;
         payments = data.payments || [];
         services = data.services || [];
         products = data.products || [];
+        categories = (data.categories && data.categories.length) ? data.categories : categories;
         render();
         applyingRemoteUpdate = false;
         if (pendingLocalPush){ pendingLocalPush = false; pushToCloud(); }
@@ -1785,6 +1799,10 @@ let pendingLocalPush = false;
       const pr = await window.storage.get('products', false);
       products = pr ? JSON.parse(pr.value) : [];
     }catch(e){ products = []; }
+    try{
+      const ct = await window.storage.get('categories', false);
+      if (ct) categories = JSON.parse(ct.value);
+    }catch(e){}
     render();
   }
 
@@ -1900,6 +1918,7 @@ let pendingLocalPush = false;
   }
 
   function renderProducts(){
+    fillCategorySelect();
     const list = $('productList');
     if (products.length === 0){
       list.innerHTML = '<p style="color:var(--muted); font-size:12.5px;">Aún no tienes productos guardados.</p>';
@@ -1908,7 +1927,8 @@ let pendingLocalPush = false;
         <div class="service-item">
           <img src="${p.image || ''}" onerror="this.style.display='none'" style="${p.image ? '' : 'display:none;'} width:44px; height:44px; object-fit:cover; border-radius:8px; margin-right:8px; flex-shrink:0;">
           <div style="flex:1;">
-            <div class="service-name">${p.name}${p.size ? ' · Talla ' + p.size : ''}${p.color ? ' · ' + p.color : ''}</div>
+            <div class="service-name">${p.name}${p.model ? ' · ' + p.model : ''}${p.size ? ' · Talla ' + p.size : ''}${p.color ? ' · ' + p.color : ''}${p.ml ? ' · ' + p.ml + ' ml' : ''}</div>
+            <div style="font-size:11px;color:var(--muted);">${escH(p.category || 'Sin categoría')}</div>
             <div class="service-price">${fmtMoney(p.price)} ${stockBadge(p.stock)}</div>
           </div>
           <div class="service-actions">
@@ -2215,13 +2235,18 @@ let pendingLocalPush = false;
     if (!name){ showToast('Escribe el nombre del producto'); return; }
     const file = $('newProductImage').files[0];
     const image = await resizeImageFile(file, 480);
-    products.push({ id: 'pr_' + Date.now(), name, price, stock, size, color, image });
+    const category = $('newProductCategory').value || 'Otros';
+    const model = $('newProductModel').value.trim();
+    const ml = parseInt($('newProductMl').value, 10) || 0;
+    products.push({ id: 'pr_' + Date.now(), name, price, stock, size, color, model, ml, category, image });
     await saveProducts();
     $('newProductName').value = '';
     $('newProductPrice').value = '';
     $('newProductStock').value = '';
     $('newProductSize').value = '';
     $('newProductColor').value = '';
+    $('newProductModel').value = '';
+    $('newProductMl').value = '';
     $('newProductImage').value = '';
     $('newProductPreview').style.display = 'none';
     render();
@@ -2241,11 +2266,21 @@ let pendingLocalPush = false;
     if (newSize === null) return;
     const newColor = prompt('Color:', p.color || '');
     if (newColor === null) return;
+    const newModel = prompt('Modelo:', p.model || '');
+    if (newModel === null) return;
+    const newMl = prompt('ml (solo perfumes/cremas, vacío si no aplica):', p.ml || '');
+    if (newMl === null) return;
+    const newCat = prompt('Categoría (' + categories.join(', ') + '):', p.category || categories[0]);
+    if (newCat === null) return;
     p.name = newName.trim() || p.name;
     p.price = parseFloat(newPriceStr) || p.price;
     p.stock = Math.max(parseInt(newStockStr, 10) || 0, 0);
     p.size = newSize.trim();
     p.color = newColor.trim();
+    p.model = newModel.trim();
+    p.ml = parseInt(newMl, 10) || 0;
+    const nc = newCat.trim();
+    if (nc){ if (!categories.some(c => c.toLowerCase() === nc.toLowerCase())){ categories.push(nc); await saveCategories(); } p.category = categories.find(c => c.toLowerCase() === nc.toLowerCase()); }
     await saveProducts();
     render();
     showToast('Producto actualizado');
@@ -2333,7 +2368,9 @@ let pendingLocalPush = false;
     const MONEY = '"€"#,##0.00';
     const num = (v, f) => { const c = { t:'n', v:Number(v)||0, z:MONEY }; if (f) c.f = f; return c; };
     const aoa = [['Fecha','Hora','Cliente','Servicios / Productos','Total','Anticipo (cobrado)','Restante (por cobrar)']];
-    const resumen = [['Mes','Nº de ventas','Total vendido','Cobrado','Por cobrar']];
+    const resumen = [['Mes','Nº de ventas','Unidades vendidas','Total generado','Cobrado','Por cobrar','Venta promedio']];
+    const porCat = [['Mes','Categoría','Unidades','Monto generado']];
+    let gU = 0;
     const subRows = [];
     let gT = 0, gA = 0, gR = 0;
 
@@ -2347,7 +2384,7 @@ let pendingLocalPush = false;
 
     months.forEach(g => {
       const first = aoa.length + 1; // fila de Excel (1-based) de la primera venta del mes
-      let T = 0, A = 0, R = 0;
+      let T = 0, A = 0, R = 0, U = 0; const cats = {};
       g.list.forEach(p => {
         const client = clients.find(c => c.id === p.clientId) || { name: 'Cliente eliminado' };
         aoa.push([
@@ -2357,6 +2394,7 @@ let pendingLocalPush = false;
           paymentServiceSummary(p),
           num(p.total), num(p.advance), num(p.remaining)
         ]);
+        (p.items || []).forEach(i => { const q = parseInt(i.qty,10) || 1; U += q; const pr = products.find(x => x.id === i.refId); const cn = (pr && pr.category) || 'Sin categoría'; cats[cn] = cats[cn] || { u:0, m:0 }; cats[cn].u += q; cats[cn].m += (Number(i.price)||0) * q; });
         T += Number(p.total)||0; A += Number(p.advance)||0; R += Number(p.remaining)||0;
       });
       const last = aoa.length;
@@ -2366,21 +2404,26 @@ let pendingLocalPush = false;
         num(T, `SUM(E${first}:E${last})`), num(A, `SUM(F${first}:F${last})`), num(R, `SUM(G${first}:G${last})`)]);
       subRows.push(aoa.length);
       aoa.push([]);
-      resumen.push([label.charAt(0).toUpperCase() + label.slice(1), g.list.length, num(T), num(A), num(R)]);
-      gT += T; gA += A; gR += R;
+      const mesTxt = label.charAt(0).toUpperCase() + label.slice(1);
+      resumen.push([mesTxt, g.list.length, U, num(T), num(A), num(R), num(T / g.list.length)]);
+      Object.keys(cats).sort((a,b) => cats[b].m - cats[a].m).forEach(cn => porCat.push([mesTxt, cn, cats[cn].u, num(cats[cn].m)]));
+      gU += U; gT += T; gA += A; gR += R;
     });
 
     const sum = col => subRows.map(r => col + r).join('+');
     aoa.push(['', '', '', 'TOTAL GENERAL', num(gT, sum('E')), num(gA, sum('F')), num(gR, sum('G'))]);
-    resumen.push(['TOTAL GENERAL', sorted.length, num(gT), num(gA), num(gR)]);
+    resumen.push(['TOTAL GENERAL', sorted.length, gU, num(gT), num(gA), num(gR), num(gT / sorted.length)]);
 
     const ws = XLSX.utils.aoa_to_sheet(aoa);
     ws['!cols'] = [{wch:12},{wch:8},{wch:22},{wch:36},{wch:14},{wch:18},{wch:20}];
     const ws2 = XLSX.utils.aoa_to_sheet(resumen);
-    ws2['!cols'] = [{wch:20},{wch:13},{wch:16},{wch:14},{wch:14}];
+    ws2['!cols'] = [{wch:20},{wch:13},{wch:17},{wch:16},{wch:14},{wch:14},{wch:15}];
+    const ws3 = XLSX.utils.aoa_to_sheet(porCat);
+    ws3['!cols'] = [{wch:20},{wch:24},{wch:11},{wch:16}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registro Diario');
     XLSX.utils.book_append_sheet(wb, ws2, 'Resumen mensual');
+    XLSX.utils.book_append_sheet(wb, ws3, 'Por categoría');
     const stamp = new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, `registro_diario_c4ny_shop_${stamp}.xlsx`);
     showToast('Excel descargado');
@@ -2445,7 +2488,7 @@ let pendingLocalPush = false;
   $('downloadExcelBtn').addEventListener('click', downloadExcelLedger);
   $('restoreFileInput').addEventListener('change', (e) => restoreBackup(e.target.files[0]));
 
-  window.C4nyShopApp = { editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder };
+  window.C4nyShopApp = { editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory };
 
   // Instalación como app (PWA)
   let deferredInstallPrompt = null;
