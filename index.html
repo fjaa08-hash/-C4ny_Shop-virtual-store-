@@ -516,7 +516,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v4 tienda</span> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v4.1 excel</span> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -2324,28 +2324,63 @@ let pendingLocalPush = false;
       showToast('No se pudo cargar el generador de Excel (revisa tu conexión)');
       return;
     }
-    const rows = payments.slice()
-      .sort((a,b) => (a.serviceDate||'').localeCompare(b.serviceDate||''))
-      .map(p => {
-        const client = clients.find(c => c.id === p.clientId) || { name: 'Cliente eliminado' };
-        return {
-          'Fecha': (p.serviceDate||'').split('T')[0],
-          'Hora': (p.serviceDate||'').includes('T') ? p.serviceDate.split('T')[1] : '',
-          'Cliente': client.name,
-          'Servicios / Productos': paymentServiceSummary(p),
-          'Total': p.total,
-          'Anticipo': p.advance,
-          'Restante': p.remaining,
-        };
-      });
-    if (rows.length === 0){
+    const sorted = payments.slice().sort((a,b) => (a.serviceDate||'').localeCompare(b.serviceDate||''));
+    if (sorted.length === 0){
       showToast('Todavía no hay movimientos que exportar');
       return;
     }
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{wch:12},{wch:8},{wch:22},{wch:32},{wch:10},{wch:10},{wch:10}];
+    const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const MONEY = '"€"#,##0.00';
+    const num = (v, f) => { const c = { t:'n', v:Number(v)||0, z:MONEY }; if (f) c.f = f; return c; };
+    const aoa = [['Fecha','Hora','Cliente','Servicios / Productos','Total','Anticipo (cobrado)','Restante (por cobrar)']];
+    const resumen = [['Mes','Nº de ventas','Total vendido','Cobrado','Por cobrar']];
+    const subRows = [];
+    let gT = 0, gA = 0, gR = 0;
+
+    const months = [];
+    sorted.forEach(p => {
+      const key = (p.serviceDate || '').slice(0,7) || 'sin-fecha';
+      let g = months[months.length - 1];
+      if (!g || g.key !== key){ g = { key, list: [] }; months.push(g); }
+      g.list.push(p);
+    });
+
+    months.forEach(g => {
+      const first = aoa.length + 1; // fila de Excel (1-based) de la primera venta del mes
+      let T = 0, A = 0, R = 0;
+      g.list.forEach(p => {
+        const client = clients.find(c => c.id === p.clientId) || { name: 'Cliente eliminado' };
+        aoa.push([
+          (p.serviceDate||'').split('T')[0],
+          (p.serviceDate||'').includes('T') ? p.serviceDate.split('T')[1] : '',
+          client.name,
+          paymentServiceSummary(p),
+          num(p.total), num(p.advance), num(p.remaining)
+        ]);
+        T += Number(p.total)||0; A += Number(p.advance)||0; R += Number(p.remaining)||0;
+      });
+      const last = aoa.length;
+      const [y, m] = g.key.split('-');
+      const label = MESES[parseInt(m,10)-1] ? (MESES[parseInt(m,10)-1] + ' ' + y) : 'sin fecha';
+      aoa.push(['', '', '', 'TOTAL DEL MES: ' + label.toUpperCase(),
+        num(T, `SUM(E${first}:E${last})`), num(A, `SUM(F${first}:F${last})`), num(R, `SUM(G${first}:G${last})`)]);
+      subRows.push(aoa.length);
+      aoa.push([]);
+      resumen.push([label.charAt(0).toUpperCase() + label.slice(1), g.list.length, num(T), num(A), num(R)]);
+      gT += T; gA += A; gR += R;
+    });
+
+    const sum = col => subRows.map(r => col + r).join('+');
+    aoa.push(['', '', '', 'TOTAL GENERAL', num(gT, sum('E')), num(gA, sum('F')), num(gR, sum('G'))]);
+    resumen.push(['TOTAL GENERAL', sorted.length, num(gT), num(gA), num(gR)]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:12},{wch:8},{wch:22},{wch:36},{wch:14},{wch:18},{wch:20}];
+    const ws2 = XLSX.utils.aoa_to_sheet(resumen);
+    ws2['!cols'] = [{wch:20},{wch:13},{wch:16},{wch:14},{wch:14}];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Registro Diario');
+    XLSX.utils.book_append_sheet(wb, ws2, 'Resumen mensual');
     const stamp = new Date().toISOString().slice(0,10);
     XLSX.writeFile(wb, `registro_diario_c4ny_shop_${stamp}.xlsx`);
     showToast('Excel descargado');
