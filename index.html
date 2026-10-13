@@ -527,7 +527,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.2</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.3</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -704,8 +704,8 @@
       <button class="close-x" id="sheetClose">✕</button>
     </div>
     <div id="sheetBody">
-      <button type="button" class="btn-main secondary" id="pickContactBtn" style="display:none; margin-bottom:4px;">📇 Elegir de mis contactos</button>
-      <div class="helper" id="pickContactHelper" style="display:none; margin-bottom:14px;">Se abrirá la lista de contactos de tu celular; el nombre y teléfono se llenan solos.</div>
+      <button type="button" class="btn-main secondary" id="pickContactBtn" style="margin-bottom:4px;">📇 Agregar desde el directorio del teléfono</button><input type="file" id="vcfInput" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple style="display:none">
+      <div class="helper" id="pickContactHelper" style="margin-bottom:14px;">Elige uno o varios contactos de tu celular. En iPhone: abre Contactos → elige el contacto → Compartir → guarda en Archivos y selecciónalo aquí (.vcf).</div>
       <div class="field">
         <label>Nombre</label>
         <input id="newName" placeholder="Nombre del cliente">
@@ -2136,7 +2136,7 @@ let pendingLocalPush = false;
           <img src="${p.image || ''}" onerror="this.style.display='none'" style="${p.image ? '' : 'display:none;'} width:44px; height:44px; object-fit:cover; border-radius:8px; margin-right:8px; flex-shrink:0;">
           <div style="flex:1;">
             <div class="service-name">${p.name}${p.model ? ' · ' + p.model : ''}${p.size ? ' · Talla ' + p.size : ''}${p.color ? ' · ' + p.color : ''}${p.ml ? ' · ' + p.ml + ' ml' : ''}</div>
-            <div style="font-size:11px;color:var(--muted);">${escH(p.category || 'Sin categoría')}</div>
+            <div style="font-size:11px;color:var(--muted);">${escH(p.category || 'Sin categoría')}${Number(p.stock) > 0 ? '' : ' · <b style="color:#c0392b;">Agotado: no se muestra en la tienda en línea</b>'}</div>
             <div class="service-price">${fmtMoney(p.price)} ${stockBadge(p.stock)}</div>
           </div>
           <div class="service-actions">
@@ -2330,6 +2330,7 @@ let pendingLocalPush = false;
     $('sheetTitle').textContent = client ? 'Editar cliente' : 'Nuevo cliente';
     $('newName').value = client ? client.name : '';
     $('newPhone').value = client ? client.phone : '';
+    $('pickContactBtn').style.display = $('pickContactHelper').style.display = client ? 'none' : 'block';
     $('overlay').classList.add('show');
   }
   function closeSheet(){
@@ -2737,22 +2738,54 @@ let pendingLocalPush = false;
 
   // Elegir cliente desde los contactos del celular (solo Chrome/Android por ahora)
   const contactsSupported = ('contacts' in navigator) && ('ContactsManager' in window);
-  if (contactsSupported){
-    $('pickContactBtn').style.display = 'block';
-    $('pickContactHelper').style.display = 'block';
-    $('pickContactBtn').addEventListener('click', async () => {
-      try{
-        const results = await navigator.contacts.select(['name', 'tel'], { multiple: false });
-        if (results && results.length){
-          const c = results[0];
-          if (c.name && c.name[0]) $('newName').value = c.name[0];
-          if (c.tel && c.tel[0]) $('newPhone').value = c.tel[0];
-        }
-      }catch(e){
-        // el usuario canceló el selector, no hacemos nada
-      }
+  const normPhone = (t) => String(t||'').replace(/\D/g,'').replace(/^58/,'').replace(/^0/,'');
+  function importContacts(list){
+    list = list.filter(c => c.name || c.phone);
+    if (!list.length){ showToast('No se encontraron contactos'); return; }
+    if (list.length === 1){
+      if (list[0].name) $('newName').value = list[0].name;
+      if (list[0].phone) $('newPhone').value = list[0].phone;
+      return;
+    }
+    let added = 0, dup = 0;
+    list.forEach(c => {
+      const np = normPhone(c.phone);
+      if (np && clients.some(x => normPhone(x.phone) === np)){ dup++; return; }
+      clients.push({ id: 'c_' + Date.now() + '_' + (added++) + Math.random().toString(36).slice(2,5), name: c.name || c.phone, phone: c.phone || '', createdAt: new Date().toISOString() });
     });
+    saveClients().then(() => { closeSheet(); render(); showToast(added + ' cliente(s) agregados' + (dup ? ' · ' + dup + ' ya existían' : '')); });
   }
+  function parseVcf(txt){
+    const out = [];
+    txt.replace(/\r/g,'').replace(/\n[ \t]/g,'').split(/BEGIN:VCARD/i).slice(1).forEach(card => {
+      let name = '', phone = '';
+      card.split('\n').forEach(l => {
+        const i = l.indexOf(':'); if (i < 0) return;
+        const k = l.slice(0,i).split(';')[0].toUpperCase(), v = l.slice(i+1).trim();
+        if (k === 'FN' && !name) name = v;
+        else if (k === 'N' && !name) name = v.split(';').filter(Boolean).reverse().join(' ').trim();
+        else if (k.endsWith('TEL') && !phone) phone = v;
+      });
+      out.push({ name, phone });
+    });
+    return out;
+  }
+  $('pickContactBtn').addEventListener('click', async () => {
+    if (contactsSupported){
+      try{
+        const results = await navigator.contacts.select(['name', 'tel'], { multiple: true });
+        if (results && results.length) importContacts(results.map(c => ({ name: (c.name && c.name[0]) || '', phone: (c.tel && c.tel[0]) || '' })));
+        return;
+      }catch(e){ return; }
+    }
+    $('vcfInput').click();
+  });
+  $('vcfInput').addEventListener('change', async (e) => {
+    let all = [];
+    for (const f of e.target.files){ try{ all = all.concat(parseVcf(await f.text())); }catch(_){} }
+    e.target.value = '';
+    importContacts(all);
+  });
   $('savePayBtn').addEventListener('click', savePayment);
   $('searchClients').addEventListener('input', renderClients);
   $('payAdvance').addEventListener('input', updateRemainingPreview);
