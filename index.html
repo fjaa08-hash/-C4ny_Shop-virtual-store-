@@ -490,6 +490,17 @@
     padding:8px 16px; border-radius:20px; cursor:pointer; font-family:'Sora',sans-serif; }
   .banco-picker button.active{ background:#2B0A3D; color:#FFE3FB; border-color:#FF7BF0;
     text-shadow:0 0 6px #F04BFF; box-shadow:0 0 10px rgba(240,75,255,.8), inset 0 0 6px rgba(240,75,255,.4); }
+
+  #vSlider{position:fixed;right:5px;top:22vh;height:56vh;width:28px;border-radius:14px;background:rgba(122,31,149,.12);box-shadow:inset 0 0 0 1.5px rgba(166,63,191,.35);display:none;z-index:40;touch-action:none}
+  #vSlider.show{display:block}
+  #vThumb{position:absolute;left:2px;top:0;width:24px;height:58px;border-radius:12px;background:linear-gradient(180deg,#C21BFF,#7A1F95);box-shadow:0 0 0 1.5px #fff,0 0 10px #E04BFF;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;line-height:1;cursor:grab}
+
+  /* Hoja "Agregar nuevo" + estado de la tienda en línea */
+  .seg{display:flex;gap:8px;margin-bottom:14px}
+  .seg button{flex:1;padding:11px 6px;border-radius:14px;border:1.5px solid #C96BE0;background:#fff;color:#7A1F95;font-weight:700;font-size:14px;cursor:pointer;font-family:'Sora',sans-serif}
+  .seg button.on{background:#2B0A3D;color:#FFE3FB;border-color:#FF7BF0;text-shadow:0 0 6px #F04BFF;box-shadow:0 0 10px rgba(240,75,255,.8),inset 0 0 6px rgba(240,75,255,.4)}
+  #pubStatus{display:none;font-size:12.5px;line-height:1.5;border-radius:14px;padding:10px 12px;margin:0 0 12px}
+  #pubStatus button{margin-left:6px;font-size:11.5px;font-weight:700;border:1.5px solid currentColor;background:#fff;color:inherit;border-radius:10px;padding:2px 10px;cursor:pointer;font-family:inherit}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -516,7 +527,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5 categorías</span> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.2</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -527,7 +538,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="clientes">Clientes</div>
     <div class="tab" data-tab="pedidos">Pedidos<span id="ordBadge"></span></div>
-    <div class="tab" data-tab="pago">Venta</div>
+    <div class="tab" data-tab="pago">Pago</div>
     <div class="tab" data-tab="registro">Registro</div>
     <div class="tab" data-tab="tienda">Tienda</div>
     <div class="tab" data-tab="recordatorios">Recordatorios</div>
@@ -543,7 +554,7 @@
     <div id="clientList"></div>
   </div>
 
-  <!-- REGISTRAR VENTA -->
+  <!-- REGISTRAR PAGO -->
   <div class="view" id="view-pedidos">
     <div style="font-size:12.5px;color:#6B6B6B;margin:4px 2px 12px;">Pedidos que llegan desde la tienda en línea. Confirma el pago para registrar la venta, descontar el stock y emitir la factura.</div>
     <div id="ordersList"></div>
@@ -584,32 +595,9 @@
       <input id="payServiceDate" type="datetime-local">
     </div>
     <div class="field">
-      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
-        <input id="payQuincenal" type="checkbox" style="width:20px; height:20px; flex-shrink:0; accent-color:#A63FBF;">
-        <span>Pago quincenal (2 cuotas)</span>
-      </label>
-      <div class="helper">Para clientas que pagan cada quincena: lo que quede por cobrar se divide en dos pagos y la factura muestra las dos fechas.</div>
-    </div>
-    <div id="quincenaBox" style="display:none;">
-      <div class="row2">
-        <div class="field">
-          <label>1ª quincena</label>
-          <input id="payQ1Date" type="date">
-        </div>
-        <div class="field">
-          <label>2ª quincena</label>
-          <input id="payQ2Date" type="date">
-        </div>
-      </div>
-      <div class="remaining-box">
-        <span>Cuotas</span>
-        <b id="quincenaPreview">€0 + €0</b>
-      </div>
-    </div>
-    <div class="field" id="reminderField">
       <label>Recordarme cobrar el ______</label>
       <input id="payReminderDate" type="date">
-      <div class="helper">Si no queda nada pendiente, este campo no hace falta. Con pago quincenal el recordatorio se pone solo en cada fecha.</div>
+      <div class="helper">Si no queda nada pendiente, este campo no hace falta.</div>
     </div>
     <button class="btn-main" id="savePayBtn">Guardar</button>
   </div>
@@ -632,18 +620,15 @@
 
   <!-- TIENDA: PRODUCTOS E INVENTARIO -->
   <div class="view" id="view-tienda">
-    <div id="imgOptimizeNotice" style="display:none; background:#FFF6D6; border:1px solid #F2D56B; color:#6B5300; border-radius:12px; padding:12px 14px; margin-bottom:12px; font-size:13px;">
-      <div id="imgOptimizeText" style="margin-bottom:8px;"></div>
-      <button type="button" class="btn-mini" id="imgOptimizeBtn" style="flex:none; padding:8px 14px;">Optimizar</button>
-    </div>
     <div class="ledger-stats">
       <div class="ledger-stat"><b id="storeProductCount">0</b><span>Productos</span></div>
       <div class="ledger-stat"><b id="storeStockValue">€0</b><span>Valor en stock</span></div>
       <div class="ledger-stat"><b id="storeLowStock">0</b><span>Con poco stock</span></div>
     </div>
+    <div id="pubStatus"></div>
     <div class="settings-block">
       <h3>Inventario de productos</h3>
-      <p>Agrega los productos que vendes en tienda, con su precio y cuántas unidades tienes. Al vender uno en "Venta", el inventario baja solo.</p>
+      <p>Agrega los productos que vendes en tienda, con su precio y cuántas unidades tienes. Al vender uno en "Pago", el inventario baja solo.</p>
       <div id="productList"></div>
       <div class="row2" style="margin-top:10px;">
         <div class="field" style="margin-bottom:0;">
@@ -685,7 +670,7 @@
   <div class="view" id="view-ajustes">
     <div class="settings-block">
       <h3>Servicios y precios</h3>
-      <p>Agrega aquí tu lista de servicios para elegirlos rápido al registrar una venta.</p>
+      <p>Agrega aquí tu lista de servicios para elegirlos rápido al registrar un pago.</p>
       <div id="serviceList"></div>
       <div class="row2" style="margin-top:10px;">
         <div class="field" style="margin-bottom:0;">
@@ -719,9 +704,8 @@
       <button class="close-x" id="sheetClose">✕</button>
     </div>
     <div id="sheetBody">
-      <button type="button" class="btn-main secondary" id="pickContactBtn" style="margin-bottom:4px;">📇 Elegir de mis contactos</button>
-      <input type="file" id="vcfInput" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple style="display:none;">
-      <div class="helper" id="pickContactHelper" style="margin-bottom:14px;">Elige uno o varios contactos de tu celular. Si eliges uno, se llenan el nombre y el teléfono para que lo revises; si eliges varios, se agregan todos de una vez. En iPhone se abre para elegir un archivo de contactos (.vcf).</div>
+      <button type="button" class="btn-main secondary" id="pickContactBtn" style="display:none; margin-bottom:4px;">📇 Elegir de mis contactos</button>
+      <div class="helper" id="pickContactHelper" style="display:none; margin-bottom:14px;">Se abrirá la lista de contactos de tu celular; el nombre y teléfono se llenan solos.</div>
       <div class="field">
         <label>Nombre</label>
         <input id="newName" placeholder="Nombre del cliente">
@@ -732,6 +716,52 @@
       </div>
       <button class="btn-main" id="saveClientBtn">Guardar cliente</button>
     </div>
+  </div>
+</div>
+
+<div class="overlay" id="addItemOverlay">
+  <div class="sheet">
+    <div class="sheet-hdr">
+      <div class="sheet-title">Agregar nuevo</div>
+      <button class="close-x" id="addItemClose">✕</button>
+    </div>
+    <div class="seg" id="addKind">
+      <button type="button" data-kind="product" class="on">🛍 Producto</button>
+      <button type="button" data-kind="service">✨ Servicio</button>
+    </div>
+    <div id="addProductForm">
+      <div class="field"><label>Nombre del producto</label><input id="niName" placeholder="Ej: Zapatilla Urban"></div>
+      <div class="row2">
+        <div class="field"><label>Precio (€)</label><input id="niPrice" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>
+        <div class="field"><label>Stock (unidades)</label><input id="niStock" type="number" inputmode="numeric" placeholder="Ej: 5"></div>
+      </div>
+      <div class="field"><label>Categoría</label>
+        <div class="row2" style="align-items:center;">
+          <select id="niCategory" style="flex:1;"></select>
+          <button type="button" class="btn-main secondary" onclick="C4nyShopApp.addCategory('niCategory')" style="margin:0;width:auto;padding:12px;font-size:13px;white-space:nowrap;">+ Categoría</button>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Talla</label><input id="niSize" placeholder="S, M, 38..."></div>
+        <div class="field"><label>Color</label><input id="niColor" placeholder="Negro..."></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Modelo</label><input id="niModel" placeholder="Opcional"></div>
+        <div class="field"><label>ml (perfumes y cremas)</label><input id="niMl" type="number" inputmode="numeric" placeholder="Ej: 100"></div>
+      </div>
+      <div class="field" style="display:flex;align-items:center;gap:10px;">
+        <img id="niPreview" alt="" style="display:none;width:56px;height:56px;object-fit:cover;border-radius:10px;border:1px solid var(--line);">
+        <label for="niImage" style="flex:1;margin:0;font-size:12.5px;color:var(--muted);border:1px dashed var(--line);border-radius:10px;padding:10px;text-align:center;cursor:pointer;">📷 Agregar foto del producto</label>
+        <input id="niImage" type="file" accept="image/*" style="display:none;">
+      </div>
+    </div>
+    <div id="addServiceForm" style="display:none;">
+      <div class="field"><label>Nombre del servicio</label><input id="niSvcName" placeholder="Ej: Envío a domicilio"></div>
+      <div class="field"><label>Precio (€)</label><input id="niSvcPrice" type="number" inputmode="decimal" step="0.01" placeholder="0.00"></div>
+      <div class="helper">Los servicios se eligen al registrar una venta en "Pago" y se administran en Ajustes → Servicios y precios.</div>
+    </div>
+    <button class="btn-main" id="addItemSave" style="margin-top:12px;">Guardar producto y cerrar</button>
+    <button class="btn-main secondary" id="addItemSaveMore">Guardar y agregar otro</button>
   </div>
 </div>
 
@@ -835,7 +865,7 @@ let pendingLocalPush = false;
         try{
           localStorage.setItem(key, value);
           return { key, value };
-        }catch(e){ return null; }
+        }catch(e){ throw e; }
       },
       async delete(key){
         try{ localStorage.removeItem(key); return { key, deleted: true }; }
@@ -857,9 +887,23 @@ let pendingLocalPush = false;
   let orders = [];
   const CAT_DEFAULT = ['Calzado','Ropa de damas','Ropa de caballeros','Perfumes y colonias','Cremas'];
   let categories = CAT_DEFAULT.slice();
-  async function saveCategories(){ try{ await window.storage.set('categories', JSON.stringify(categories), false); }catch(e){} pushToCloud(); }
-  function fillCategorySelect(){ const el = $('newProductCategory'); if (!el) return; const cur = el.value; el.innerHTML = categories.map(c => `<option>${escH(c)}</option>`).join(''); if (categories.includes(cur)) el.value = cur; }
-  async function addCategory(){ const n = (prompt('Nombre de la nueva categoría:') || '').trim(); if (!n) return; if (!categories.some(c => c.toLowerCase() === n.toLowerCase())){ categories.push(n); await saveCategories(); } fillCategorySelect(); $('newProductCategory').value = categories.find(c => c.toLowerCase() === n.toLowerCase()); }
+  async function saveCategories(){ try{ await window.storage.set('categories', JSON.stringify(categories), false); }catch(e){} pushToCloud(); schedulePublish(); }
+  const CAT_SELECTS = ['newProductCategory','niCategory'];
+  function fillCategorySelect(){
+    CAT_SELECTS.forEach(id => {
+      const el = $(id); if (!el) return;
+      const cur = el.value;
+      el.innerHTML = categories.map(c => `<option>${escH(c)}</option>`).join('');
+      if (categories.includes(cur)) el.value = cur;
+    });
+  }
+  async function addCategory(selId){
+    const n = (prompt('Nombre de la nueva categoría:') || '').trim(); if (!n) return;
+    if (!categories.some(c => c.toLowerCase() === n.toLowerCase())){ categories.push(n); await saveCategories(); }
+    fillCategorySelect();
+    const el = $(typeof selId === 'string' ? selId : 'newProductCategory');
+    if (el) el.value = categories.find(c => c.toLowerCase() === n.toLowerCase());
+  }
   let editingClientId = null;
   let quickAddFromPay = false;
 
@@ -879,45 +923,14 @@ let pendingLocalPush = false;
           }
           const canvas = document.createElement('canvas');
           canvas.width = width; canvas.height = height;
-          const cx = canvas.getContext('2d');
-          cx.fillStyle = '#FFFFFF';            // fondo blanco: las fotos transparentes no salen negras
-          cx.fillRect(0, 0, width, height);
-          cx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
+          canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.82));
         };
         img.onerror = () => resolve(null);
         img.src = reader.result;
       };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
-    });
-  }
-
-  const PRODUCT_IMG_SIZE = 200;   // se muestran a 44px (lista) y 52px (factura)
-  const HEAVY_IMG_CHARS = 30000;  // ~22 KB: por encima se considera foto pesada
-  const imgBytes = (src) => Math.round(String(src || '').length * 0.75);
-  function fmtBytes(n){
-    return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(Math.round(n / 1024), 1) + ' KB';
-  }
-  function shrinkDataUrl(src, maxSize){
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        let { width, height } = img;
-        if (width > maxSize || height > maxSize){
-          if (width > height){ height = Math.round(height * maxSize / width); width = maxSize; }
-          else { width = Math.round(width * maxSize / height); height = maxSize; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width; canvas.height = height;
-        const cx = canvas.getContext('2d');
-        cx.fillStyle = '#FFFFFF';
-        cx.fillRect(0, 0, width, height);
-        cx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.8));
-      };
-      img.onerror = () => resolve(null);
-      img.src = src;
     });
   }
 
@@ -945,38 +958,150 @@ let pendingLocalPush = false;
     }
   }
 
-  let pubCache = {}, pubIds = null;
-  async function publishCatalog(){
-    if (!SYNC_ENABLED || !cloudDb) return;
-    try{
-      if (pubIds === null){ const sn = await getDocs(collection(cloudDb,'catalogo')); pubIds = new Set(sn.docs.map(d => d.id)); }
-      const cur = new Set();
-      for (const p of products){
-        cur.add(p.id);
-        const pub = { name:p.name, price:p.price, stock:p.stock, size:p.size||'', color:p.color||'', model:p.model||'', ml:p.ml||0, category:p.category||'Otros', catIdx:Math.max(categories.indexOf(p.category),0), image:p.image||'' };
-        const h = JSON.stringify(pub);
-        if (pubCache[p.id] !== h){ await setDoc(doc(cloudDb,'catalogo',p.id), pub); pubCache[p.id] = h; pubIds.add(p.id); }
-      }
-      for (const id of [...pubIds]) if (!cur.has(id)){ await deleteDoc(doc(cloudDb,'catalogo',id)); pubIds.delete(id); }
-    }catch(e){ console.error('Catálogo público', e); }
+  // ------------------------------------------------------------
+  // CATÁLOGO PÚBLICO (lo que ven los clientes en la tienda en línea)
+  // Cada producto va en su propio documento 'catalogo/{id}', separado del
+  // documento principal (que tiene un tope de 1 MB), y se publica aunque
+  // el respaldo principal falle.
+  // ------------------------------------------------------------
+  const PUB_KEYS = ['name','price','stock','size','color','model','ml','category','catIdx','image'];
+  let pubCache = {}, pubIds = null, catalogImages = {};
+  let pubRunning = false, pubAgain = false, pubTimer = null, pubRetryTimer = null;
+  let pubFailed = 0, pubErr = '', mainErr = '', firstSyncDone = false, userDeleted = false;
+  const imgSig = (x) => x ? (x.length + ':' + x.slice(-32)) : '';
+  function buildPub(p){
+    return { name:p.name, price:p.price, stock:p.stock, size:p.size||'', color:p.color||'', model:p.model||'', ml:p.ml||0,
+      category:p.category||'Otros', catIdx:Math.max(categories.indexOf(p.category),0), image:p.image || catalogImages[p.id] || '' };
+  }
+  function pubHash(o){ return JSON.stringify(PUB_KEYS.map(k => k === 'image' ? imgSig(o[k]) : o[k])); }
+  // Al nube principal van los productos SIN foto (las fotos viven en 'catalogo' y en este celular)
+  function cloudProducts(){ return products.map(p => { const { image, ...rest } = p; return rest; }); }
+  function persistLocalAll(){
+    [['clients',clients],['payments',payments],['services',services],['products',products],['categories',categories]]
+      .forEach(([k,v]) => { Promise.resolve(window.storage.set(k, JSON.stringify(v), false)).catch(() => {}); });
+  }
+  function fillImagesFromCatalog(){
+    let changed = false;
+    products.forEach(p => { if (!p.image && catalogImages[p.id]){ p.image = catalogImages[p.id]; changed = true; } });
+    if (changed){ Promise.resolve(window.storage.set('products', JSON.stringify(products), false)).catch(() => {}); render(); }
+  }
+  function mergeById(remote, local){
+    const r = Array.isArray(remote) ? remote : [], l = Array.isArray(local) ? local : [];
+    const lm = new Map(l.map(x => [x.id, x]));
+    const out = r.map(x => lm.has(x.id) ? lm.get(x.id) : x);
+    const seen = new Set(r.map(x => x.id));
+    l.forEach(x => { if (!seen.has(x.id)) out.push(x); });
+    return out;
+  }
+  function mergeProducts(remote, local){
+    const rm = new Map((Array.isArray(remote) ? remote : []).map(x => [x.id, x]));
+    return mergeById(remote, local).map(p => p.image ? p : Object.assign({}, p, { image: (rm.get(p.id) || {}).image || catalogImages[p.id] || '' }));
+  }
+  function withImages(list){
+    const lm = new Map(products.map(p => [p.id, p.image]));
+    return (list || []).map(p => p.image ? p : Object.assign({}, p, { image: lm.get(p.id) || catalogImages[p.id] || '' }));
+  }
+  function unionList(a, b){
+    const out = [];
+    [].concat(Array.isArray(a) ? a : [], Array.isArray(b) ? b : []).forEach(x => {
+      if (!out.some(y => String(y).toLowerCase() === String(x).toLowerCase())) out.push(x);
+    });
+    return out;
   }
 
+  function renderPubStatus(){
+    const el = $('pubStatus'); if (!el) return;
+    if (!SYNC_ENABLED){ el.style.display = 'none'; return; }
+    const total = products.length;
+    const okList = products.filter(p => pubCache[p.id] === pubHash(buildPub(p)));
+    const visibles = okList.filter(p => (Number(p.stock) || 0) > 0).length;
+    let html = '🛍 <b>Tienda en línea:</b> ' + okList.length + ' de ' + total + ' productos publicados · ' + visibles + ' visibles para los clientes <span style="opacity:.75">(solo se muestran los que tienen stock)</span>';
+    let bad = false;
+    if (mainErr){ bad = true; html += '<br>⚠ No se pudo guardar el respaldo en la nube (' + escH(mainErr) + ').'; }
+    if (pubFailed){ bad = true; html += '<br>⚠ ' + pubFailed + ' sin publicar' + (pubErr ? ' (' + escH(pubErr) + ')' : '') + '. Se reintenta solo.'; }
+    html += ' <button type="button" onclick="C4nyShopApp.republish()">Volver a publicar</button>';
+    el.innerHTML = html;
+    el.style.display = 'block';
+    el.style.background = bad ? '#FBE7EC' : '#F6EAFB';
+    el.style.color = bad ? '#A03A50' : '#5E1B75';
+  }
+
+  function schedulePublish(){ clearTimeout(pubTimer); pubTimer = setTimeout(publishCatalog, 400); }
+  function scheduleRetry(){ clearTimeout(pubRetryTimer); pubRetryTimer = setTimeout(publishCatalog, 20000); }
+  function republish(){ pubCache = {}; showToast('Publicando el catálogo...'); schedulePublish(); }
+
+  async function publishCatalog(){
+    if (!SYNC_ENABLED || !cloudDb || !firstSyncDone) return;
+    if (pubRunning){ pubAgain = true; return; }
+    pubRunning = true;
+    try{
+      do{ pubAgain = false; await publishCatalogOnce(); }while (pubAgain);
+    }finally{ pubRunning = false; }
+  }
+  async function publishCatalogOnce(){
+    if (pubIds === null){
+      try{
+        const sn = await getDocs(collection(cloudDb,'catalogo'));
+        pubIds = new Set();
+        sn.docs.forEach(d => { const x = d.data() || {}; pubIds.add(d.id); catalogImages[d.id] = x.image || ''; pubCache[d.id] = pubHash(x); });
+        fillImagesFromCatalog();
+      }catch(e){
+        console.error('Catálogo público (lectura)', e);
+        pubFailed = products.length; pubErr = (e && e.code) || 'sin conexión';
+        renderPubStatus(); scheduleRetry();
+        return;
+      }
+    }
+    let failed = 0, err = '';
+    // Cada producto va por separado: si uno falla, los demás igual se publican
+    for (const p of products.slice()){
+      const pub = buildPub(p), h = pubHash(pub);
+      if (pubCache[p.id] === h) continue;
+      try{
+        await setDoc(doc(cloudDb,'catalogo',p.id), pub);
+        pubCache[p.id] = h; pubIds.add(p.id); catalogImages[p.id] = pub.image;
+      }catch(e){
+        failed++; err = (e && (e.code || e.message)) || 'error';
+        console.error('Catálogo público', p.name, e);
+      }
+    }
+    // Quita de la tienda lo que ya no existe en la app (nunca vacía todo el catálogo por accidente)
+    if (products.length > 0 || userDeleted){
+      const cur = new Set(products.map(p => p.id));
+      for (const id of [...pubIds]){
+        if (cur.has(id)) continue;
+        try{ await deleteDoc(doc(cloudDb,'catalogo',id)); pubIds.delete(id); delete pubCache[id]; delete catalogImages[id]; }
+        catch(e){ failed++; err = (e && (e.code || e.message)) || 'error'; }
+      }
+    }
+    pubFailed = failed; pubErr = err;
+    renderPubStatus();
+    if (failed) scheduleRetry();
+  }
+
+  let lastRemote = {}, lastPushedAt = '', pushing = 0;
   async function pushToCloud(){
     if (!SYNC_ENABLED || !cloudReady || applyingRemoteUpdate){
       pendingLocalPush = !cloudReady && SYNC_ENABLED;
       return;
     }
+    const cur = { clients, payments, services, products: cloudProducts(), categories };
+    const diff = {};
+    for (const k in cur){ const j = JSON.stringify(cur[k]); if (lastRemote[k] !== j) diff[k] = cur[k]; }
+    if (!Object.keys(diff).length) return;
+    const at = new Date().toISOString();
+    pushing++;
     try{
-      const ref = doc(cloudDb, ...SALON_DOC);
-      await setDoc(ref, {
-        clients, payments, services, products, categories,
-        updatedAt: new Date().toISOString()
-      });
-      publishCatalog();
+      await setDoc(doc(cloudDb, ...SALON_DOC), { ...diff, updatedAt: at }, { merge: true });
+      lastPushedAt = at;
+      for (const k in diff) lastRemote[k] = JSON.stringify(diff[k]);
+      mainErr = '';
+      updateSyncBadge('on');
     }catch(e){
       console.error('No se pudo sincronizar con la nube', e);
+      mainErr = (e && (e.code || e.message)) || 'error';
       updateSyncBadge('error');
-    }
+    }finally{ pushing--; renderPubStatus(); }
   }
 
   async function initCloudSync(){
@@ -994,25 +1119,48 @@ let pendingLocalPush = false;
         orders = sn.docs.map(d => ({ id:d.id, ...d.data() })).sort((a,b) => (b.createdAt||'').localeCompare(a.createdAt||''));
         renderOrders();
       }, (e) => console.error('Pedidos', e));
+      let firstSnap = true;
       onSnapshot(ref, (snap) => {
+        // Si aún no hay respuesta real del servidor, esperamos (así no se decide con datos incompletos)
+        if (firstSnap && !snap.exists() && snap.metadata && snap.metadata.fromCache) return;
         cloudReady = true;
         updateSyncBadge('on');
-        if (!snap.exists()){
-          // Primera vez: sube lo que ya haya en este celular.
+        if (firstSnap){
+          firstSnap = false;
+          const data = snap.exists() ? snap.data() : {};
+          // Primera lectura: se UNE lo de la nube con lo guardado en este celular. No se descarta nada local.
+          try{ localStorage.setItem('c4ny_copia_antes_de_sincronizar', JSON.stringify({ at:new Date().toISOString(), clients, payments, services, products:cloudProducts() })); }catch(e){}
+          applyingRemoteUpdate = true;
+          clients = mergeById(data.clients, clients);
+          payments = mergeById(data.payments, payments);
+          services = mergeById(data.services, services);
+          products = mergeProducts(data.products, products);
+          categories = unionList(data.categories, categories);
+          ['clients','payments','services','products','categories'].forEach(k => { if (data[k] !== undefined) lastRemote[k] = JSON.stringify(data[k]); });
+          persistLocalAll();
+          render();
+          applyingRemoteUpdate = false;
+          pendingLocalPush = false;
+          firstSyncDone = true;
           pushToCloud();
+          publishCatalog();
           return;
         }
+        if (!snap.exists()) return;
         const data = snap.data();
+        // Ignora el eco de nuestras propias escrituras (podría traer datos más viejos que lo que acabamos de editar)
+        if (pushing > 0 || (lastPushedAt && data.updatedAt && data.updatedAt <= lastPushedAt)) return;
         applyingRemoteUpdate = true;
         clients = data.clients || [];
         payments = data.payments || [];
         services = data.services || [];
-        products = data.products || [];
+        products = withImages(data.products);
         categories = (data.categories && data.categories.length) ? data.categories : categories;
+        ['clients','payments','services','products','categories'].forEach(k => { if (data[k] !== undefined) lastRemote[k] = JSON.stringify(data[k]); });
+        persistLocalAll();
         render();
         applyingRemoteUpdate = false;
-        if (pendingLocalPush){ pendingLocalPush = false; pushToCloud(); }
-        publishCatalog();
+        schedulePublish();
       }, (err) => {
         console.error('Error de sincronización', err);
         updateSyncBadge('error');
@@ -1271,44 +1419,6 @@ let pendingLocalPush = false;
     updateRemainingPreview();
   }
 
-  const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
-  function paymentAbonos(p){ return Array.isArray(p.abonos) ? p.abonos : []; }
-  function paymentInitialAdvance(p){
-    const ab = paymentAbonos(p).reduce((s,a) => s + (Number(a.amount)||0), 0);
-    return Math.max(r2((Number(p.advance)||0) - ab), 0);
-  }
-  // Monto que el cliente debe pagar hoy: lo que resta; si ya está todo pagado, el total
-  function paymentDue(p){ return (Number(p.remaining)||0) > 0 ? Number(p.remaining) : (Number(p.total)||0); }
-  // Reparte los abonos hechos después de la venta entre las cuotas, en orden
-  function planStatus(p){
-    const plan = Array.isArray(p.plan) ? p.plan : [];
-    let left = paymentAbonos(p).reduce((s,a) => s + (Number(a.amount)||0), 0);
-    return plan.map(c => {
-      const amount = Number(c.amount) || 0;
-      const paid = Math.min(left, amount);
-      left = r2(left - paid);
-      return { date: c.date, amount, paid: r2(paid), done: paid >= amount - 0.005 };
-    });
-  }
-  function nextDueDate(p){
-    const c = planStatus(p).find(c => !c.done);
-    return c ? c.date : '';
-  }
-  function isoLocal(d){
-    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-  }
-  // Próximas dos quincenas (el 15 y el último día del mes)
-  function defaultQuincenas(){
-    const t = new Date(), y = t.getFullYear(), m = t.getMonth(), d = t.getDate();
-    const q15 = (yy, mm) => new Date(yy, mm, 15);
-    const fin = (yy, mm) => new Date(yy, mm + 1, 0);
-    return d <= 15 ? [isoLocal(q15(y,m)), isoLocal(fin(y,m))] : [isoLocal(fin(y,m)), isoLocal(q15(y,m+1))];
-  }
-  function splitQuincenas(remaining){
-    const a = r2(remaining / 2);
-    return [a, r2(remaining - a)];
-  }
-
   function paymentItems(p){
     if (p.items && p.items.length) return p.items;
     if (p.service) return [{ name: p.service, price: p.total, qty: 1, type: 'custom' }];
@@ -1468,14 +1578,7 @@ let pendingLocalPush = false;
       }
     }));
     const imageExtra = items.reduce((s, item, idx) => s + (itemImages[idx] ? 24 : 0), 0);
-    const abonosList = paymentAbonos(payment);
-    const initAdv = paymentInitialAdvance(payment);
-    const plan = planStatus(payment);
-    const showDeductions = payment.remaining > 0 && (payment.advance || 0) > 0;
-    const deductionLines = showDeductions ? 1 + (initAdv > 0 ? 1 : 0) + abonosList.length : 0;
-    const planExtra = plan.length ? (110 + plan.length * 38) : 0;
-    const dueAmount = paymentDue(payment);
-    canvas.height = 960 + Math.max(items.length - 1, 0) * 40 + (bcv ? 55 : 0) + (371 + (bcv ? 34 : 0)) + 30 + 40 + imageExtra + Math.max(deductionLines * 38 - 78, 0) + planExtra + (deductionLines || plan.length ? 50 : 0);
+    canvas.height = 960 + Math.max(items.length - 1, 0) * 40 + (bcv ? 55 : 0) + (371 + (bcv ? 34 : 0)) + 30 + 40 + imageExtra;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
 
@@ -1625,23 +1728,26 @@ let pendingLocalPush = false;
       if (prodImg) y += 24;
     });
 
-    // Si hay abonos: total de la venta menos lo ya pagado
-    if (showDeductions){
-      const line = (label, amountTxt, color) => {
-        y += 38;
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#6B6B6B';
-        ctx.font = '500 20px Inter, sans-serif';
-        ctx.fillText(label, 60, y);
-        ctx.textAlign = 'right';
-        ctx.fillStyle = color;
-        ctx.font = '700 20px Inter, sans-serif';
-        ctx.fillText(amountTxt, W - 60, y);
-      };
-      y += 6;
-      line('Total de la venta', fmtMoney(payment.total), '#111111');
-      if (initAdv > 0) line('Anticipo', '- ' + fmtMoney(initAdv), '#2E9E5B');
-      abonosList.forEach(a => line('Abono ' + formatDate(a.date), '- ' + fmtMoney(a.amount), '#2E9E5B'));
+    if (payment.advance > 0){
+      y += 40;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#6B6B6B';
+      ctx.font = '500 20px Inter, sans-serif';
+      ctx.fillText('Anticipo pagado', 60, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#A63FBF';
+      ctx.font = '700 20px Inter, sans-serif';
+      ctx.fillText('- ' + fmtMoney(payment.advance), W - 60, y);
+    }
+    if (payment.remaining > 0){
+      y += 38;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#C6425E';
+      ctx.font = '700 20px Inter, sans-serif';
+      ctx.fillText('Saldo restante', 60, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#A63FBF';
+      ctx.fillText(fmtMoney(payment.remaining), W - 60, y);
     }
 
     // Solid divider
@@ -1655,48 +1761,22 @@ let pendingLocalPush = false;
     ctx.textAlign = 'left';
     ctx.fillStyle = '#111111';
     ctx.font = '700 28px Sora, sans-serif';
-    ctx.fillText(payment.remaining > 0 && (payment.advance || 0) > 0 ? 'TOTAL A PAGAR' : ((payment.advance || 0) > 0 && payment.remaining <= 0 ? 'TOTAL PAGADO' : 'TOTAL'), 60, y);
+    ctx.fillText('TOTAL', 60, y);
     ctx.textAlign = 'right';
     ctx.fillStyle = '#A63FBF';
     ctx.font = '800 44px Sora, sans-serif';
-    ctx.fillText(fmtMoney(dueAmount), W - 60, y);
+    ctx.fillText(fmtMoney(payment.total), W - 60, y);
 
     if (bcv){
       y += 42;
       ctx.textAlign = 'right';
       ctx.fillStyle = '#A63FBF';
       ctx.font = '600 22px Inter, sans-serif';
-      ctx.fillText('≈ ' + fmtBs(dueAmount * bcv.rate), W - 60, y);
+      ctx.fillText('≈ ' + fmtBs(payment.total * bcv.rate), W - 60, y);
       ctx.textAlign = 'left';
       ctx.font = '400 14px Inter, sans-serif';
       const fecha = new Date(bcv.fetchedAt).toLocaleDateString('es-VE');
       ctx.fillText(`Tasa BCV: ${bcv.rate.toLocaleString('es-VE',{minimumFractionDigits:2})} Bs/€ (${fecha})`, 60, y);
-    }
-
-    // Plan de pagos quincenal (si la venta se divide en dos fechas)
-    if (plan.length){
-      y += 40;
-      const rowH = 38;
-      const planH = 56 + plan.length * rowH + 14;
-      ctx.fillStyle = '#FFF3E3';
-      ctx.beginPath();
-      ctx.roundRect ? ctx.roundRect(60, y, W - 120, planH, 16) : ctx.rect(60, y, W - 120, planH);
-      ctx.fill();
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#7A1F95';
-      ctx.font = '800 22px Sora, sans-serif';
-      ctx.fillText('Plan de pagos quincenal', 84, y + 36);
-      plan.forEach((c, i) => {
-        const ry = y + 56 + i * rowH + 24;
-        ctx.textAlign = 'left';
-        ctx.fillStyle = c.done ? '#2E9E5B' : '#111111';
-        ctx.font = '600 21px Inter, sans-serif';
-        ctx.fillText(`${c.done ? '✔ ' : ''}${i + 1}ª quincena · ${formatDate(c.date)}`, 84, ry);
-        ctx.textAlign = 'right';
-        ctx.font = '700 21px Inter, sans-serif';
-        ctx.fillText(c.done ? 'Pagada' : fmtMoney(c.amount - c.paid), W - 84, ry);
-      });
-      y += planH - 15;   // deja la caja de métodos de pago justo debajo
     }
 
     // Caja de métodos de pago
@@ -1762,7 +1842,7 @@ let pendingLocalPush = false;
       py += 34;
       ctx.font = '700 22px Inter, sans-serif';
       ctx.fillStyle = '#A63FBF';
-      ctx.fillText(`Monto a pagar: ${fmtBs(dueAmount * bcv.rate)}`, 84, py);
+      ctx.fillText(`Monto a pagar: ${fmtBs(payment.total * bcv.rate)}`, 84, py);
     }
 
     // Separación respecto a Binance
@@ -1825,25 +1905,12 @@ let pendingLocalPush = false;
     items.forEach(item => {
       msg += `${itemLabel(item)}: ${fmtMoney(item.price * (item.qty||1))}\n`;
     });
-    const dueAmount = paymentDue(payment);
-    const withAbonos = payment.remaining > 0 && (payment.advance || 0) > 0;
-    msg += `\nTotal de la venta: ${fmtMoney(payment.total)}\n`;
-    if (withAbonos){
-      const initAdv = paymentInitialAdvance(payment);
-      if (initAdv > 0) msg += `Anticipo: - ${fmtMoney(initAdv)}\n`;
-      paymentAbonos(payment).forEach(a => { msg += `Abono ${formatDate(a.date)}: - ${fmtMoney(a.amount)}\n`; });
-      msg += `*TOTAL A PAGAR: ${fmtMoney(dueAmount)}*\n`;
-    } else if ((payment.advance || 0) > 0 && payment.remaining <= 0){
-      msg += `*TOTAL PAGADO: ${fmtMoney(dueAmount)}* ✔\n`;
-    }
+    msg += `\nTotal: ${fmtMoney(payment.total)}\n`;
     if (bcvCache) {
-      msg += `≈ ${fmtBs(dueAmount * bcvCache.rate)} (tasa BCV ${bcvCache.rate.toLocaleString('es-VE',{minimumFractionDigits:2})} Bs/€)\n`;
+      msg += `≈ ${fmtBs(payment.total * bcvCache.rate)} (tasa BCV ${bcvCache.rate.toLocaleString('es-VE',{minimumFractionDigits:2})} Bs/€)\n`;
     }
-    const cuotas = planStatus(payment);
-    if (cuotas.length){
-      msg += `\n📅 *Plan de pagos quincenal*\n`;
-      cuotas.forEach((c, i) => { msg += `${i + 1}ª quincena · ${formatDate(c.date)}: ${c.done ? 'Pagada ✔' : fmtMoney(c.amount - c.paid)}\n`; });
-    }
+    if (payment.advance > 0) msg += `Anticipo pagado: ${fmtMoney(payment.advance)}\n`;
+    if (payment.remaining > 0) msg += `Saldo restante: ${fmtMoney(payment.remaining)}\n`;
     msg += `\n💳 *MÉTODOS DE PAGO*\n`;
     msg += `\n📱 *Pago Móvil*\n`;
     msg += `Banco: ${PAGO_MOVIL.banco}\n`;
@@ -1851,7 +1918,7 @@ let pendingLocalPush = false;
     msg += `Teléfono: ${PAGO_MOVIL.telefono}\n`;
     msg += `\n💠 *Binance*\nID: ${BINANCE.id}\n`;
     if (bcvCache){
-      msg += `Monto a pagar: ${fmtBs(dueAmount * bcvCache.rate)}\n`;
+      msg += `Monto a pagar: ${fmtBs(payment.total * bcvCache.rate)}\n`;
     }
     msg += `${PAYMENT_NOTE}\n`;
     msg += `\n¡Gracias por tu preferencia! 💕`;
@@ -1912,7 +1979,7 @@ let pendingLocalPush = false;
 
     $('invoiceCopyPayBtn').onclick = async () => {
       let text = `Banco: ${PAGO_MOVIL.banco}\nC.I.: ${PAGO_MOVIL.ci}\nTeléfono: ${PAGO_MOVIL.telefono}\nBinance ID: ${BINANCE.id}`;
-      if (bcvCache) text += `\nMonto: ${fmtBs(paymentDue(p) * bcvCache.rate)}`;
+      if (bcvCache) text += `\nMonto: ${fmtBs(p.total * bcvCache.rate)}`;
       try{
         await navigator.clipboard.writeText(text);
         showToast('Datos de Pago Móvil copiados');
@@ -1963,8 +2030,9 @@ let pendingLocalPush = false;
   }
   async function saveProducts(){
     try{ await window.storage.set('products', JSON.stringify(products), false); }
-    catch(e){ showToast('No se pudo guardar. Intenta de nuevo.'); }
+    catch(e){ showToast('No se pudo guardar en este celular (memoria llena). Se envía a la nube.'); }
     pushToCloud();
+    schedulePublish();
   }
 
   function clientVisits(clientId){
@@ -2065,7 +2133,7 @@ let pendingLocalPush = false;
     } else {
       list.innerHTML = products.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p => `
         <div class="service-item">
-          <img src="${p.image || ''}" loading="lazy" decoding="async" width="44" height="44" onerror="this.style.display='none'" style="${p.image ? '' : 'display:none;'} width:44px; height:44px; object-fit:cover; border-radius:8px; margin-right:8px; flex-shrink:0;">
+          <img src="${p.image || ''}" onerror="this.style.display='none'" style="${p.image ? '' : 'display:none;'} width:44px; height:44px; object-fit:cover; border-radius:8px; margin-right:8px; flex-shrink:0;">
           <div style="flex:1;">
             <div class="service-name">${p.name}${p.model ? ' · ' + p.model : ''}${p.size ? ' · Talla ' + p.size : ''}${p.color ? ' · ' + p.color : ''}${p.ml ? ' · ' + p.ml + ' ml' : ''}</div>
             <div style="font-size:11px;color:var(--muted);">${escH(p.category || 'Sin categoría')}</div>
@@ -2080,16 +2148,11 @@ let pendingLocalPush = false;
       `).join('');
     }
 
-    // Aviso si hay fotos pesadas guardadas
-    const heavy = products.filter(p => p.image && p.image.length > HEAVY_IMG_CHARS);
-    const totalImgBytes = products.reduce((n, p) => n + imgBytes(p.image), 0);
-    $('imgOptimizeNotice').style.display = heavy.length ? 'block' : 'none';
-    if (heavy.length) $('imgOptimizeText').textContent = 'Las fotos ocupan ' + fmtBytes(totalImgBytes) + '. Optimizarlas hace la app más rápida; no se borra ni cambia ningún producto.';
-
     $('storeProductCount').textContent = products.length;
     const stockValue = products.reduce((s,p)=> s + (p.price * p.stock), 0);
     $('storeStockValue').textContent = fmtMoney(stockValue).replace('.00','');
     $('storeLowStock').textContent = products.filter(p => p.stock <= 3).length;
+    renderPubStatus();
   }
 
   function renderLedger(){
@@ -2097,7 +2160,7 @@ let pendingLocalPush = false;
     const sorted = payments.slice().sort((a,b) => (b.serviceDate||'').localeCompare(a.serviceDate||''));
 
     if (sorted.length === 0){
-      list.innerHTML = '<div class="empty"><b>Todavía no hay servicios registrados</b>Cuando registres una venta en la pestaña "Venta", aparecerá aquí tu libro diario.</div>';
+      list.innerHTML = '<div class="empty"><b>Todavía no hay servicios registrados</b>Cuando registres un pago en la pestaña "Pago", aparecerá aquí tu libro diario.</div>';
     } else {
       list.innerHTML = sorted.map(p => {
         const client = clients.find(c => c.id === p.clientId) || {name:'Cliente eliminado'};
@@ -2149,12 +2212,7 @@ let pendingLocalPush = false;
       const client = clients.find(c => c.id === p.clientId) || {name:'Cliente eliminado', phone:''};
       const overdue = p.reminderDate && p.reminderDate < today;
       const soon = p.reminderDate && !overdue && p.reminderDate <= addDays(today, 3);
-      const cuotas = planStatus(p);
-      const nextCuota = cuotas.find(c => !c.done);
-      const msg = `Hola ${client.name}, te escribo de C4ny_Shop para recordarte que queda un saldo pendiente de ${fmtMoney(p.remaining)} por "${paymentServiceSummary(p)}".` +
-        (nextCuota ? ` Tu próxima cuota de ${fmtMoney(nextCuota.amount - nextCuota.paid)} es el ${formatDate(nextCuota.date)}.` : '') + ` ¡Gracias!`;
-      const abonadoTxt = (Number(p.advance)||0) > 0 ? `<div class="rem-service">Total ${fmtMoney(p.total)} · Abonado ${fmtMoney(p.advance)}</div>` : '';
-      const cuotasTxt = cuotas.length ? `<div class="rem-service">` + cuotas.map((c,i) => `${i+1}ª quincena ${formatDate(c.date)}: ${fmtMoney(c.amount)} ${c.done ? '✔' : (c.paid > 0 ? '(abonado ' + fmtMoney(c.paid) + ')' : '')}`).join('<br>') + `</div>` : '';
+      const msg = `Hola ${client.name}, te escribo de C4ny_Shop para recordarte que queda un saldo pendiente de ${fmtMoney(p.remaining)} por "${paymentServiceSummary(p)}". ¡Gracias!`;
       return `
         <div class="rem-item ${overdue ? 'overdue':''}">
           <div class="rem-top">
@@ -2162,8 +2220,6 @@ let pendingLocalPush = false;
               <div class="rem-name">${client.name}</div>
               <div class="rem-service">${paymentServiceSummary(p)}</div>
               <div class="rem-service">📅 ${formatDateTime(p.serviceDate)}</div>
-              ${abonadoTxt}
-              ${cuotasTxt}
             </div>
             <div class="rem-amount">${fmtMoney(p.remaining)}</div>
           </div>
@@ -2173,9 +2229,6 @@ let pendingLocalPush = false;
           <div class="rem-actions">
             <a class="btn-mini wa" href="${waLink(client.phone, msg)}" target="_blank" rel="noopener">Recordar por WhatsApp</a>
             <button class="btn-mini" onclick="C4nyShopApp.showInvoice('${p.id}')">Factura</button>
-          </div>
-          <div class="rem-actions">
-            <button class="btn-mini" onclick="C4nyShopApp.addAbono('${p.id}')">+ Abonar</button>
             <button class="btn-mini" onclick="C4nyShopApp.markPaid('${p.id}')">Marcar cobrado</button>
           </div>
         </div>`;
@@ -2223,6 +2276,12 @@ let pendingLocalPush = false;
     }).join('');
   }
 
+  async function logout(){
+    if (!confirm('¿Cerrar sesión en este dispositivo?')) return;
+    try{ await signOut(getFirebaseAuthInstance()); }catch(e){ console.error(e); }
+    location.reload();
+  }
+
   async function confirmOrder(id){
     const o = orders.find(x => x.id === id);
     if (!o || o.status !== 'nuevo' || payments.some(p => p.sourceOrder === id)) return;
@@ -2264,21 +2323,6 @@ let pendingLocalPush = false;
     const adv = parseFloat($('payAdvance').value) || 0;
     const rem = Math.max(total - adv, 0);
     $('remainingPreview').textContent = fmtMoney(rem);
-    if ($('quincenaPreview')){
-      const [a, b] = splitQuincenas(rem);
-      $('quincenaPreview').textContent = fmtMoney(a) + ' + ' + fmtMoney(b);
-    }
-  }
-  function toggleQuincena(){
-    const on = $('payQuincenal').checked;
-    $('quincenaBox').style.display = on ? 'block' : 'none';
-    $('reminderField').style.display = on ? 'none' : 'block';
-    if (on && (!$('payQ1Date').value || !$('payQ2Date').value)){
-      const [q1, q2] = defaultQuincenas();
-      $('payQ1Date').value = q1;
-      $('payQ2Date').value = q2;
-    }
-    updateRemainingPreview();
   }
 
   function openSheet(mode, client){
@@ -2325,23 +2369,13 @@ let pendingLocalPush = false;
     if (!clientId){ showToast('Selecciona un cliente'); return; }
     if (items.length === 0){ showToast('Agrega al menos un servicio o producto con su precio'); return; }
 
-    const remaining = Math.max(r2(total - advance), 0);
-    const pay = {
+    const remaining = Math.max(total - advance, 0);
+    payments.push({
       id: 'p_' + Date.now(),
       clientId, items, total, advance, remaining,
       serviceDate: serviceDate || new Date().toISOString().slice(0,16),
       reminderDate: remaining > 0 ? reminderDate : '',
-    };
-    // Pago quincenal: el saldo se divide en dos cuotas con sus fechas
-    if ($('payQuincenal').checked && remaining > 0){
-      const d1 = $('payQ1Date').value, d2 = $('payQ2Date').value;
-      if (!d1 || !d2){ showToast('Elige las dos fechas de quincena'); return; }
-      const [f1, f2] = [d1, d2].sort();
-      const [m1, m2] = splitQuincenas(remaining);
-      pay.plan = [ { date: f1, amount: m1 }, { date: f2, amount: m2 } ];
-      pay.reminderDate = f1;
-    }
-    payments.push(pay);
+    });
     await savePayments();
     await applyStockChanges(items, -1);
 
@@ -2349,10 +2383,6 @@ let pendingLocalPush = false;
     addItemRow();
     $('payAdvance').value = '';
     $('payReminderDate').value = '';
-    $('payQuincenal').checked = false;
-    $('payQ1Date').value = '';
-    $('payQ2Date').value = '';
-    toggleQuincena();
     updateItemsTotal();
 
     render();
@@ -2361,40 +2391,10 @@ let pendingLocalPush = false;
 
   async function markPaid(paymentId){
     const p = payments.find(p => p.id === paymentId);
-    if (p){
-      // Lo que faltaba queda registrado como un abono final, para que el libro cuadre
-      const rest = r2((Number(p.total)||0) - (Number(p.advance)||0));
-      if (rest > 0){
-        p.abonos = paymentAbonos(p).concat([{ date: new Date().toISOString().slice(0,16), amount: rest }]);
-        p.advance = Number(p.total) || 0;
-      }
-      p.remaining = 0;
-      p.reminderDate = '';
-    }
+    if (p){ p.remaining = 0; p.reminderDate = ''; }
     await savePayments();
     render();
     showToast('Marcado como cobrado');
-  }
-
-  async function addAbono(paymentId){
-    const p = payments.find(p => p.id === paymentId);
-    if (!p || !(p.remaining > 0)) return;
-    const next = planStatus(p).find(c => !c.done);
-    const suggested = r2(next ? Math.min(next.amount - next.paid, p.remaining) : p.remaining);
-    const txt = prompt('¿Cuánto abona el cliente? (resta ' + fmtMoney(p.remaining) + ')', suggested);
-    if (txt === null) return;
-    const amount = parseFloat(String(txt).replace(',', '.'));
-    if (!(amount > 0)){ showToast('Escribe un monto válido'); return; }
-    const real = Math.min(r2(amount), p.remaining);
-    p.abonos = paymentAbonos(p).concat([{ date: new Date().toISOString().slice(0,16), amount: real }]);
-    p.advance = r2((Number(p.advance)||0) + real);
-    p.remaining = Math.max(r2((Number(p.total)||0) - p.advance), 0);
-    p.reminderDate = p.remaining > 0 ? (nextDueDate(p) || p.reminderDate || '') : '';
-    await savePayments();
-    render();
-    showToast(p.remaining > 0
-      ? 'Abono registrado. Ahora resta ' + fmtMoney(p.remaining) + ' · abre la factura para enviarla actualizada'
-      : 'Abono registrado. ¡Pagado completo!');
   }
 
   async function deletePayment(paymentId){
@@ -2449,7 +2449,7 @@ let pendingLocalPush = false;
     const color = $('newProductColor').value.trim();
     if (!name){ showToast('Escribe el nombre del producto'); return; }
     const file = $('newProductImage').files[0];
-    const image = await resizeImageFile(file, PRODUCT_IMG_SIZE);
+    const image = await resizeImageFile(file, 480);
     const category = $('newProductCategory').value || 'Otros';
     const model = $('newProductModel').value.trim();
     const ml = parseInt($('newProductMl').value, 10) || 0;
@@ -2506,7 +2506,7 @@ let pendingLocalPush = false;
     if (!p) return;
     const file = input.files[0];
     if (!file) return;
-    const image = await resizeImageFile(file, PRODUCT_IMG_SIZE);
+    const image = await resizeImageFile(file, 480);
     if (image){
       p.image = image;
       await saveProducts();
@@ -2515,28 +2515,10 @@ let pendingLocalPush = false;
     }
   }
 
-  async function optimizeImages(){
-    const heavy = products.filter(p => p.image && p.image.length > HEAVY_IMG_CHARS);
-    if (!heavy.length){ showToast('Las fotos ya están optimizadas'); return; }
-    const before = products.reduce((n, p) => n + imgBytes(p.image), 0);
-    if (!confirm('Se van a achicar ' + heavy.length + ' foto(s) a ' + PRODUCT_IMG_SIZE + ' px. No se borra ningún producto ni se cambian nombres o precios. ¿Continuar?')) return;
-    const btn = $('imgOptimizeBtn');
-    btn.disabled = true; btn.textContent = 'Optimizando…';
-    let done = 0;
-    for (const p of heavy){
-      const small = await shrinkDataUrl(p.image, PRODUCT_IMG_SIZE);
-      if (small && small.length < p.image.length){ p.image = small; done++; }
-    }
-    btn.disabled = false; btn.textContent = 'Optimizar';
-    if (done) await saveProducts();
-    render();
-    const after = products.reduce((n, p) => n + imgBytes(p.image), 0);
-    showToast(done ? 'Fotos optimizadas: de ' + fmtBytes(before) + ' a ' + fmtBytes(after) : 'No se pudo achicar ninguna foto');
-  }
-
   async function deleteProduct(productId){
     if (!confirm('¿Eliminar este producto del inventario?')) return;
     products = products.filter(p => p.id !== productId);
+    userDeleted = true;
     await saveProducts();
     render();
     showToast('Producto eliminado');
@@ -2672,13 +2654,80 @@ let pendingLocalPush = false;
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     $('view-' + tab).classList.add('active');
+    $('fabAdd').title = tab === 'tienda' ? 'Agregar producto o servicio' : 'Nuevo cliente';
     if (tab === 'pago') ensureAtLeastOneRow();
   }
 
   document.querySelectorAll('.tab').forEach(t => {
     t.addEventListener('click', () => switchTab(t.dataset.tab));
   });
-  $('fabAdd').addEventListener('click', () => openSheet('new', null));
+  // ---- Botón + : en la pestaña Tienda agrega productos o servicios ----
+  let addKind = 'product', addSaving = false;
+  function setAddKind(kind){
+    addKind = kind;
+    document.querySelectorAll('#addKind button').forEach(b => b.classList.toggle('on', b.dataset.kind === kind));
+    $('addProductForm').style.display = kind === 'product' ? 'block' : 'none';
+    $('addServiceForm').style.display = kind === 'service' ? 'block' : 'none';
+    $('addItemSave').textContent = kind === 'product' ? 'Guardar producto y cerrar' : 'Guardar servicio y cerrar';
+  }
+  function openAddItem(kind){
+    fillCategorySelect();
+    setAddKind(kind || addKind);
+    $('addItemOverlay').classList.add('show');
+    setTimeout(() => { const el = $(addKind === 'product' ? 'niName' : 'niSvcName'); if (el) el.focus(); }, 80);
+  }
+  function closeAddItem(){ $('addItemOverlay').classList.remove('show'); }
+  function clearAddItem(){
+    ['niName','niPrice','niStock','niSize','niColor','niModel','niMl','niSvcName','niSvcPrice'].forEach(id => { $(id).value = ''; });
+    $('niImage').value = ''; $('niPreview').style.display = 'none';
+  }
+  async function saveNewItem(keepOpen){
+    if (addSaving) return;
+    addSaving = true;
+    try{
+      if (addKind === 'service'){
+        const name = $('niSvcName').value.trim();
+        const price = parseFloat($('niSvcPrice').value) || 0;
+        if (!name){ showToast('Escribe el nombre del servicio'); return; }
+        if (price <= 0){ showToast('Escribe el precio del servicio'); return; }
+        services.push({ id: 's_' + Date.now(), name, price });
+        await saveServices();
+        render();
+        showToast('Servicio agregado');
+      } else {
+        const name = $('niName').value.trim();
+        const price = parseFloat($('niPrice').value) || 0;
+        if (!name){ showToast('Escribe el nombre del producto'); return; }
+        if (price <= 0){ showToast('Escribe el precio del producto'); return; }
+        const stock = Math.max(parseInt($('niStock').value, 10) || 0, 0);
+        const image = await resizeImageFile($('niImage').files[0], 480);
+        products.push({ id: 'pr_' + Date.now(), name, price, stock, size: $('niSize').value.trim(), color: $('niColor').value.trim(),
+          model: $('niModel').value.trim(), ml: parseInt($('niMl').value, 10) || 0, category: $('niCategory').value || 'Otros', image });
+        await saveProducts();
+        render();
+        showToast(stock > 0 ? 'Producto agregado' : 'Producto agregado · sin stock no se muestra en la tienda en línea');
+      }
+      if (keepOpen){
+        const keepCat = $('niCategory').value;
+        clearAddItem(); $('niCategory').value = keepCat;
+        const el = $(addKind === 'product' ? 'niName' : 'niSvcName'); if (el) el.focus();
+      } else { clearAddItem(); closeAddItem(); }
+    } finally { addSaving = false; }
+  }
+
+  $('fabAdd').addEventListener('click', () => {
+    const t = document.querySelector('.tab.active');
+    if (t && t.dataset.tab === 'tienda') openAddItem('product'); else openSheet('new', null);
+  });
+  document.querySelectorAll('#addKind button').forEach(b => b.addEventListener('click', () => setAddKind(b.dataset.kind)));
+  $('addItemClose').addEventListener('click', closeAddItem);
+  $('addItemOverlay').addEventListener('click', (e) => { if (e.target.id === 'addItemOverlay') closeAddItem(); });
+  $('addItemSave').addEventListener('click', () => saveNewItem(false));
+  $('addItemSaveMore').addEventListener('click', () => saveNewItem(true));
+  $('niImage').addEventListener('change', (e) => {
+    const f = e.target.files[0], pv = $('niPreview');
+    if (f){ pv.src = URL.createObjectURL(f); pv.style.display = 'block'; } else { pv.style.display = 'none'; }
+  });
   $('quickAddBtn').addEventListener('click', () => { quickAddFromPay = true; openSheet('new', null); });
   $('sheetClose').addEventListener('click', closeSheet);
   $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
@@ -2686,91 +2735,27 @@ let pendingLocalPush = false;
   $('invoiceOverlay').addEventListener('click', (e) => { if (e.target.id === 'invoiceOverlay') $('invoiceOverlay').classList.remove('show'); });
   $('saveClientBtn').addEventListener('click', saveClient);
 
-  // Elegir cliente(s) desde los contactos del celular
-  // - Chrome/Android: abre el selector de contactos del teléfono.
-  // - iPhone / otros navegadores (no tienen esa función): se abre un selector de archivos .vcf.
+  // Elegir cliente desde los contactos del celular (solo Chrome/Android por ahora)
   const contactsSupported = ('contacts' in navigator) && ('ContactsManager' in window);
-
-  function digitsOnly(x){ return String(x || '').replace(/\D/g, ''); }
-
-  async function importContacts(list){
-    list = (list || []).filter(c => c && (c.name || c.phone));
-    if (!list.length){ showToast('No se encontró ningún contacto con nombre'); return; }
-    // Un solo contacto (o editando): rellena el formulario para que lo revises
-    if (list.length === 1 || editingClientId){
-      const c = list[0];
-      if (c.name) $('newName').value = c.name;
-      if (c.phone) $('newPhone').value = c.phone;
-      showToast('Contacto cargado. Revisa y toca "Guardar cliente"');
-      return;
-    }
-    // Varios contactos: se agregan directo, sin duplicar teléfonos ya registrados
-    const known = new Set(clients.map(c => digitsOnly(c.phone)).filter(Boolean));
-    let added = 0, skipped = 0;
-    list.forEach((c, i) => {
-      const d = digitsOnly(c.phone);
-      const name = (c.name || '').trim() || c.phone;
-      if (d && known.has(d)){ skipped++; return; }
-      if (d) known.add(d);
-      clients.push({ id: 'c_' + Date.now() + '_' + i, name, phone: (c.phone || '').trim(), createdAt: new Date().toISOString() });
-      added++;
-    });
-    if (added){
-      await saveClients();
-      closeSheet();
-      render();
-    }
-    showToast(added ? (added + (added === 1 ? ' cliente agregado' : ' clientes agregados') + (skipped ? ' · ' + skipped + ' ya existían' : '')) : 'Esos contactos ya estaban registrados');
-  }
-
-  function parseVCards(text){
-    const unfolded = String(text || '').replace(/\r\n?/g, '\n').replace(/\n[ \t]/g, '');
-    const cards = unfolded.split(/BEGIN:VCARD/i).slice(1);
-    return cards.map(card => {
-      let name = '';
-      const fn = card.match(/^FN[^:\n]*:(.*)$/mi);
-      if (fn) name = fn[1].trim();
-      if (!name){
-        const n = card.match(/^N[^:\n]*:(.*)$/mi);
-        if (n) name = n[1].split(';').filter(Boolean).reverse().join(' ').trim();
+  if (contactsSupported){
+    $('pickContactBtn').style.display = 'block';
+    $('pickContactHelper').style.display = 'block';
+    $('pickContactBtn').addEventListener('click', async () => {
+      try{
+        const results = await navigator.contacts.select(['name', 'tel'], { multiple: false });
+        if (results && results.length){
+          const c = results[0];
+          if (c.name && c.name[0]) $('newName').value = c.name[0];
+          if (c.tel && c.tel[0]) $('newPhone').value = c.tel[0];
+        }
+      }catch(e){
+        // el usuario canceló el selector, no hacemos nada
       }
-      const tel = card.match(/^(?:item\d+\.)?TEL[^:\n]*:(.*)$/mi);
-      return { name, phone: tel ? tel[1].trim() : '' };
     });
   }
-
-  $('pickContactBtn').addEventListener('click', async () => {
-    if (!contactsSupported){
-      $('vcfInput').click();   // alternativa para iPhone y otros navegadores
-      return;
-    }
-    try{
-      const results = await navigator.contacts.select(['name', 'tel'], { multiple: !editingClientId });
-      if (!results || !results.length) return;
-      await importContacts(results.map(c => ({
-        name: (c.name && c.name[0]) || '',
-        phone: (c.tel && c.tel[0]) || ''
-      })));
-    }catch(e){
-      if (e && e.name === 'AbortError') return;   // cerró el selector sin elegir
-      showToast('No se pudo abrir tus contactos. Elige un archivo .vcf');
-      $('vcfInput').click();
-    }
-  });
-  $('vcfInput').addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files || []);
-    let all = [];
-    for (const f of files){
-      try{ all = all.concat(parseVCards(await f.text())); }catch(err){}
-    }
-    e.target.value = '';
-    await importContacts(all);
-  });
   $('savePayBtn').addEventListener('click', savePayment);
   $('searchClients').addEventListener('input', renderClients);
   $('payAdvance').addEventListener('input', updateRemainingPreview);
-  $('payQuincenal').addEventListener('change', toggleQuincena);
-  $('imgOptimizeBtn').addEventListener('click', optimizeImages);
   $('addServiceBtn').addEventListener('click', addService);
   $('addItemBtn').addEventListener('click', () => addItemRow());
   $('addProductBtn').addEventListener('click', addProduct);
@@ -2786,7 +2771,7 @@ let pendingLocalPush = false;
   $('downloadExcelBtn').addEventListener('click', downloadExcelLedger);
   $('restoreFileInput').addEventListener('change', (e) => restoreBackup(e.target.files[0]));
 
-  window.C4nyShopApp = { editClient, markPaid, addAbono, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, optimizeImages, showInvoice, confirmOrder, rejectOrder, addCategory };
+  window.C4nyShopApp = { editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory, logout, republish };
 
   // Instalación como app (PWA)
   let deferredInstallPrompt = null;
@@ -2819,9 +2804,9 @@ let pendingLocalPush = false;
     });
   }
 
-  function startApp(){
+  async function startApp(){
     ensureAtLeastOneRow();
-    loadData();
+    await loadData();
     initCloudSync();
   }
 
@@ -2830,6 +2815,29 @@ let pendingLocalPush = false;
   } else {
     startApp();
   }
+})();
+</script>
+<div id="vSlider" role="slider" aria-label="Subir y bajar"><div id="vThumb">⇅</div></div>
+<script>
+(function(){
+  const tr=document.getElementById('vSlider'), th=document.getElementById('vThumb');
+  const root=document.scrollingElement||document.documentElement; let drag=false;
+  const maxS=()=>root.scrollHeight-window.innerHeight;
+  function place(){
+    const tv=document.getElementById('view-tienda');
+    const on=!!(tv&&tv.classList.contains('active')&&maxS()>120&&!document.querySelector('.overlay.show'));
+    tr.classList.toggle('show',on); if(!on||drag) return;
+    th.style.top=((tr.clientHeight-th.offsetHeight)*root.scrollTop/maxS())+'px';
+  }
+  function move(y){
+    const b=tr.getBoundingClientRect(), r=tr.clientHeight-th.offsetHeight;
+    const p=Math.min(1,Math.max(0,(y-b.top-th.offsetHeight/2)/r));
+    th.style.top=(r*p)+'px'; window.scrollTo(0,p*maxS());
+  }
+  tr.addEventListener('pointerdown',e=>{drag=true;tr.setPointerCapture(e.pointerId);move(e.clientY);e.preventDefault();});
+  tr.addEventListener('pointermove',e=>{if(drag)move(e.clientY);});
+  const end=()=>{drag=false;place();}; tr.addEventListener('pointerup',end); tr.addEventListener('pointercancel',end);
+  window.addEventListener('scroll',place,{passive:true}); window.addEventListener('resize',place); setInterval(place,400);
 })();
 </script>
 </body>
