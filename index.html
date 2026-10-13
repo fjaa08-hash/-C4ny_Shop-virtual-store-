@@ -527,7 +527,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.3</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.5</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -704,7 +704,7 @@
       <button class="close-x" id="sheetClose">✕</button>
     </div>
     <div id="sheetBody">
-      <button type="button" class="btn-main secondary" id="pickContactBtn" style="margin-bottom:4px;">📇 Agregar desde el directorio del teléfono</button><input type="file" id="vcfInput" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple style="display:none">
+      <button type="button" class="btn-main secondary" id="pickContactBtn" style="margin-bottom:4px;">📇 Agregar desde el directorio del teléfono</button><button type="button" id="vcfBtn" style="display:block;margin:0 0 6px;background:none;border:0;color:var(--muted);font-size:12px;text-decoration:underline;">o importar un archivo de contactos (.vcf)</button><input type="file" id="vcfInput" accept=".vcf,text/vcard,text/x-vcard,text/directory" multiple style="display:none">
       <div class="helper" id="pickContactHelper" style="margin-bottom:14px;">Elige uno o varios contactos de tu celular. En iPhone: abre Contactos → elige el contacto → Compartir → guarda en Archivos y selecciónalo aquí (.vcf).</div>
       <div class="field">
         <label>Nombre</label>
@@ -934,6 +934,52 @@ let pendingLocalPush = false;
     });
   }
 
+
+  // ---- Foto en alta calidad para la tienda en línea (la app sigue guardando la versión comprimida) ----
+  const hdIDB = () => new Promise((res, rej) => { const r = indexedDB.open('c4ny_hd', 1); r.onupgradeneeded = () => r.result.createObjectStore('q'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  const hdTx = async (mode, fn) => { const db = await hdIDB(); return new Promise((res, rej) => { const t = db.transaction('q', mode), o = fn(t.objectStore('q')); t.oncomplete = () => res(o && o.result); t.onerror = () => rej(t.error); }); };
+  const hdPut = (id, data) => hdTx('readwrite', st => st.put(data, id));
+  const hdDel = (id) => hdTx('readwrite', st => st.delete(id));
+  const hdKeys = () => hdTx('readonly', st => st.getAllKeys());
+  const hdGet = (id) => hdTx('readonly', st => st.get(id));
+  function makeHD(file){
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file), img = new Image();
+      img.onload = () => {
+        let w = img.naturalWidth, h = img.naturalHeight, max = 1600, q = 0.9, out = '';
+        for (let i = 0; i < 8; i++){
+          const sc = Math.min(1, max / Math.max(w, h)), cw = Math.round(w * sc), ch = Math.round(h * sc);
+          const cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+          cv.getContext('2d').drawImage(img, 0, 0, cw, ch);
+          out = cv.toDataURL('image/jpeg', q);
+          if (out.length <= 900000) break;
+          if (q > 0.78) q -= 0.06; else max = Math.round(max * 0.85);
+        }
+        URL.revokeObjectURL(url); resolve(out.length <= 1000000 ? out : null);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+  let hdBusy = false;
+  async function queueHD(id, file){
+    try{ const d = await makeHD(file); if (d){ await hdPut(id, d); flushHD(); } }catch(e){ console.error('HD', e); }
+  }
+  async function flushHD(){
+    if (hdBusy || !cloudDb || !firstSyncDone) return;
+    hdBusy = true;
+    try{
+      for (const id of (await hdKeys()) || []){
+        const d = await hdGet(id);
+        if (!d){ await hdDel(id); continue; }
+        try{ await setDoc(doc(cloudDb, 'catalogo_hd', id), { image: d, at: new Date().toISOString() }); await hdDel(id); }
+        catch(e){ console.error('HD subida', e); }
+      }
+    }catch(e){ console.error(e); }
+    hdBusy = false;
+  }
+  setInterval(flushHD, 20000);
+
   function updateSyncBadge(state){
     // state: 'off' | 'connecting' | 'on' | 'error'
     const el = $('syncBadge');
@@ -1070,13 +1116,14 @@ let pendingLocalPush = false;
       const cur = new Set(products.map(p => p.id));
       for (const id of [...pubIds]){
         if (cur.has(id)) continue;
-        try{ await deleteDoc(doc(cloudDb,'catalogo',id)); pubIds.delete(id); delete pubCache[id]; delete catalogImages[id]; }
+        try{ await deleteDoc(doc(cloudDb,'catalogo',id)); pubIds.delete(id); delete pubCache[id]; delete catalogImages[id]; deleteDoc(doc(cloudDb,'catalogo_hd',id)).catch(()=>{}); }
         catch(e){ failed++; err = (e && (e.code || e.message)) || 'error'; }
       }
     }
     pubFailed = failed; pubErr = err;
     renderPubStatus();
     if (failed) scheduleRetry();
+    flushHD();
   }
 
   let lastRemote = {}, lastPushedAt = '', pushing = 0;
@@ -2330,7 +2377,7 @@ let pendingLocalPush = false;
     $('sheetTitle').textContent = client ? 'Editar cliente' : 'Nuevo cliente';
     $('newName').value = client ? client.name : '';
     $('newPhone').value = client ? client.phone : '';
-    $('pickContactBtn').style.display = $('pickContactHelper').style.display = client ? 'none' : 'block';
+    $('pickContactBtn').style.display = $('pickContactHelper').style.display = $('vcfBtn').style.display = client ? 'none' : 'block';
     $('overlay').classList.add('show');
   }
   function closeSheet(){
@@ -2454,7 +2501,9 @@ let pendingLocalPush = false;
     const category = $('newProductCategory').value || 'Otros';
     const model = $('newProductModel').value.trim();
     const ml = parseInt($('newProductMl').value, 10) || 0;
-    products.push({ id: 'pr_' + Date.now(), name, price, stock, size, color, model, ml, category, image });
+    const newPid = 'pr_' + Date.now();
+    products.push({ id: newPid, name, price, stock, size, color, model, ml, category, image });
+    if (file) queueHD(newPid, file);
     await saveProducts();
     $('newProductName').value = '';
     $('newProductPrice').value = '';
@@ -2510,6 +2559,7 @@ let pendingLocalPush = false;
     const image = await resizeImageFile(file, 480);
     if (image){
       p.image = image;
+      queueHD(p.id, file);
       await saveProducts();
       render();
       showToast('Foto del producto actualizada');
@@ -2520,6 +2570,7 @@ let pendingLocalPush = false;
     if (!confirm('¿Eliminar este producto del inventario?')) return;
     products = products.filter(p => p.id !== productId);
     userDeleted = true;
+    try{ hdDel(productId); if (cloudDb) deleteDoc(doc(cloudDb,'catalogo_hd',productId)).catch(()=>{}); }catch(_){}
     await saveProducts();
     render();
     showToast('Producto eliminado');
@@ -2775,11 +2826,18 @@ let pendingLocalPush = false;
       try{
         const results = await navigator.contacts.select(['name', 'tel'], { multiple: true });
         if (results && results.length) importContacts(results.map(c => ({ name: (c.name && c.name[0]) || '', phone: (c.tel && c.tel[0]) || '' })));
+        else showToast('No elegiste ningún contacto');
         return;
-      }catch(e){ return; }
+      }catch(e){
+        if (e && e.name === 'AbortError') return;
+        showToast('No se pudo abrir el directorio. Elige un archivo de contactos (.vcf)');
+      }
+    } else {
+      showToast('Este navegador no abre el directorio directo. Elige un archivo de contactos (.vcf)');
     }
-    $('vcfInput').click();
+    setTimeout(() => $('vcfInput').click(), 300);
   });
+  $('vcfBtn').addEventListener('click', () => $('vcfInput').click());
   $('vcfInput').addEventListener('change', async (e) => {
     let all = [];
     for (const f of e.target.files){ try{ all = all.concat(parseVcf(await f.text())); }catch(_){} }
