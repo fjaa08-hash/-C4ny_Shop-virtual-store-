@@ -31,7 +31,7 @@ input,textarea{width:100%;padding:12px;border:1.5px solid #EBC9A0;border-radius:
 import {initializeApp} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
 import {getFirestore,collection,onSnapshot,doc,setDoc,getDoc} from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
 const db=getFirestore(initializeApp({apiKey:"AIzaSyAygrlyvvM5v7Q1lOXUTkcdhqNXJoJsgtk",authDomain:"c4nyshop-virtual-store.firebaseapp.com",projectId:"c4nyshop-virtual-store",storageBucket:"c4nyshop-virtual-store.firebasestorage.app",messagingSenderId:"192015539406",appId:"1:192015539406:web:b621c219bd8d40d572449f"}));
-const $=id=>document.getElementById(id),cart={},eur=n=>'€'+Number(n).toFixed(2);let prods=[],pm='Bancamiga',proof='',cat='Todo',sel={};
+const $=id=>document.getElementById(id),cart={},eur=n=>'€'+Number(n).toFixed(2);let prods=[],pm='Provincial',proof='',cat='Todo',sel={};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const A=[['model','Modelo'],['size','Talla'],['color','Color'],['ml','Presentación']];
 const val=(p,k)=>k=='ml'?(p.ml?p.ml+' ml':''):(p[k]||'');
@@ -64,7 +64,7 @@ const keep=f=>{const I=['fn','fp','ft','fr'],v=I.map(i=>$(i)?$(i).value:'');f();
 window.cq=(id,d)=>{const p=prods.find(x=>x.id===id),q=(cart[id]||0)+d;if(q<=0)delete cart[id];else if(q<=p.stock)cart[id]=q;bar();if(!lines().length)return closeCart();keep(form)};
 window.openCart=()=>{$('sheet').classList.add('show');form()};
 window.closeCart=()=>$('sheet').classList.remove('show');
-const PM={Bancamiga:'📱 <b>Pago Móvil · Bancamiga</b><br>C.I.: 15558489<br>Teléfono: 04126542694',Banesco:'📱 <b>Pago Móvil · Banesco</b><br>C.I.: 15558489<br>Teléfono: 04126542694',Binance:'💠 <b>Binance</b> (USDT)<br>ID: Candyzgoitia1@gmail.com'};
+const PM={Provincial:'📱 <b>Pago Móvil · Provincial</b><br>C.I.: 15558489<br>Teléfono: 04126542694',Banesco:'📱 <b>Pago Móvil · Banesco</b><br>C.I.: 15558489<br>Teléfono: 04126542694',Binance:'💠 <b>Binance</b> (USDT)<br>ID: Candyzgoitia1@gmail.com'};
 function form(){$('box').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0;font-size:18px">Tu pedido</h2><button onclick="closeCart()" style="border:0;background:#eee;border-radius:50%;width:34px;height:34px;font-size:16px">✕</button></div>
 ${lines().map(l=>`<div class="ln"><span>${esc(lab(l.p))}<span class="ql"><button onclick="cq('${l.p.id}',-1)">−</button><b>${l.q}</b><button onclick="cq('${l.p.id}',1)">+</button></span></span><b>${eur(l.p.price*l.q)}</b></div>`).join('')}<div class="ln tot"><span>Total</span><span>${eur(total())}</span></div>
 <label>Tu nombre</label><input id="fn" autocomplete="name"><label>Tu teléfono (WhatsApp)</label><input id="fp" type="tel" autocomplete="tel"><label>Notas (opcional)</label><textarea id="ft" rows="2"></textarea>

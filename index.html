@@ -772,7 +772,7 @@
       <div class="sheet-title">Factura</div>
       <button class="close-x" id="invoiceClose">✕</button>
     </div>
-    <div class="banco-picker" id="bancoPicker"><span>Pago Móvil:</span><button type="button" data-banco="Bancamiga">Bancamiga</button><button type="button" data-banco="Banesco">Banesco</button></div>
+    <div class="banco-picker" id="bancoPicker"><span>Pago Móvil:</span><button type="button" data-banco="Provincial">Provincial</button><button type="button" data-banco="Banesco">Banesco</button></div>
     <div style="text-align:center;">
       <canvas id="invoiceCanvas" width="720" height="1040" style="width:100%; max-width:400px; border-radius:14px; box-shadow:0 4px 18px rgba(122,31,149,.25);"></canvas>
     </div>
@@ -1504,10 +1504,10 @@ let pendingLocalPush = false;
   const SALON_NAME = 'C4ny_Shop virtual store';
   const SALON_ADDRESS = '';
   const PAGO_MOVIL_OPCIONES = {
-    'Bancamiga': { banco: 'Bancamiga', ci: '15558489', telefono: '04126542694' },
+    'Provincial': { banco: 'Provincial', ci: '15558489', telefono: '04126542694' },
     'Banesco':   { banco: 'Banesco',   ci: '15558489', telefono: '04126542694' },
   };
-  const PAGO_MOVIL = Object.assign({}, PAGO_MOVIL_OPCIONES['Bancamiga']);
+  const PAGO_MOVIL = Object.assign({}, PAGO_MOVIL_OPCIONES['Provincial']);
   function setPagoMovilBanco(nombre){
     if (!PAGO_MOVIL_OPCIONES[nombre]) return;
     Object.assign(PAGO_MOVIL, PAGO_MOVIL_OPCIONES[nombre]);
