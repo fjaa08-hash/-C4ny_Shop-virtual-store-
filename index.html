@@ -528,7 +528,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.5</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.6</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -766,6 +766,23 @@
   </div>
 </div>
 
+<div class="overlay" id="abonoOverlay">
+  <div class="sheet">
+    <div class="sheet-hdr">
+      <div class="sheet-title">Registrar abono</div>
+      <button class="close-x" id="abonoClose">✕</button>
+    </div>
+    <div id="abonoInfo" style="font-size:13.5px;line-height:1.5;"></div>
+    <div id="abonoHist"></div>
+    <div class="field" style="margin-top:12px;">
+      <label>Monto del abono</label>
+      <input id="abonoAmount" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+    </div>
+    <div class="remaining-box"><span>Nuevo saldo</span><b id="abonoNew">€0</b></div>
+    <button type="button" class="btn-main secondary" id="abonoFull" style="margin-top:8px;">Pagar todo el saldo</button>
+    <button type="button" class="btn-main" id="abonoSave" style="margin-top:8px;">Guardar abono y ver factura</button>
+  </div>
+</div>
 <div class="overlay" id="invoiceOverlay">
   <div class="sheet">
     <div class="sheet-hdr">
@@ -1626,7 +1643,7 @@ let pendingLocalPush = false;
       }
     }));
     const imageExtra = items.reduce((s, item, idx) => s + (itemImages[idx] ? 24 : 0), 0);
-    canvas.height = 960 + Math.max(items.length - 1, 0) * 40 + (bcv ? 55 : 0) + (371 + (bcv ? 34 : 0)) + 30 + 40 + imageExtra;
+    canvas.height = 960 + Math.max(items.length - 1, 0) * 40 + (bcv ? 55 : 0) + (371 + (bcv ? 34 : 0)) + 30 + 40 + imageExtra + (payment.abonos || []).length * 38;
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
 
@@ -1776,17 +1793,30 @@ let pendingLocalPush = false;
       if (prodImg) y += 24;
     });
 
-    if (payment.advance > 0){
+    const ab = payment.abonos || [];
+    const ini = initialAdvance(payment);
+    if (ini > 0){
       y += 40;
       ctx.textAlign = 'left';
       ctx.fillStyle = '#6B6B6B';
       ctx.font = '500 20px Inter, sans-serif';
-      ctx.fillText('Anticipo pagado', 60, y);
+      ctx.fillText(ab.length ? 'Anticipo inicial' : 'Anticipo pagado', 60, y);
       ctx.textAlign = 'right';
       ctx.fillStyle = '#A63FBF';
       ctx.font = '700 20px Inter, sans-serif';
-      ctx.fillText('- ' + fmtMoney(payment.advance), W - 60, y);
+      ctx.fillText('- ' + fmtMoney(ini), W - 60, y);
     }
+    ab.forEach((x, i) => {
+      y += (ini > 0 || i > 0) ? 34 : 40;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#6B6B6B';
+      ctx.font = '500 20px Inter, sans-serif';
+      ctx.fillText('Abono ' + (i+1) + ' · ' + formatDate(x.date), 60, y);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#A63FBF';
+      ctx.font = '700 20px Inter, sans-serif';
+      ctx.fillText('- ' + fmtMoney(x.amount), W - 60, y);
+    });
     if (payment.remaining > 0){
       y += 38;
       ctx.textAlign = 'left';
@@ -1890,7 +1920,7 @@ let pendingLocalPush = false;
       py += 34;
       ctx.font = '700 22px Inter, sans-serif';
       ctx.fillStyle = '#A63FBF';
-      ctx.fillText(`Monto a pagar: ${fmtBs(payment.total * bcv.rate)}`, 84, py);
+      ctx.fillText(`${payment.remaining > 0 && payment.advance > 0 ? 'Saldo a pagar' : 'Monto a pagar'}: ${fmtBs((payment.remaining > 0 ? payment.remaining : payment.total) * bcv.rate)}`, 84, py);
     }
 
     // Separación respecto a Binance
@@ -1957,7 +1987,9 @@ let pendingLocalPush = false;
     if (bcvCache) {
       msg += `≈ ${fmtBs(payment.total * bcvCache.rate)} (tasa BCV ${bcvCache.rate.toLocaleString('es-VE',{minimumFractionDigits:2})} Bs/€)\n`;
     }
-    if (payment.advance > 0) msg += `Anticipo pagado: ${fmtMoney(payment.advance)}\n`;
+    const abw = payment.abonos || [], iniw = initialAdvance(payment);
+    if (iniw > 0) msg += `${abw.length ? 'Anticipo inicial' : 'Anticipo pagado'}: ${fmtMoney(iniw)}\n`;
+    abw.forEach((x, i) => { msg += `Abono ${i+1} (${formatDate(x.date)}): ${fmtMoney(x.amount)}\n`; });
     if (payment.remaining > 0) msg += `Saldo restante: ${fmtMoney(payment.remaining)}\n`;
     msg += `\n💳 *MÉTODOS DE PAGO*\n`;
     msg += `\n📱 *Pago Móvil*\n`;
@@ -1966,7 +1998,7 @@ let pendingLocalPush = false;
     msg += `Teléfono: ${PAGO_MOVIL.telefono}\n`;
     msg += `\n💠 *Binance*\nID: ${BINANCE.id}\n`;
     if (bcvCache){
-      msg += `Monto a pagar: ${fmtBs(payment.total * bcvCache.rate)}\n`;
+      msg += `${payment.remaining > 0 && payment.advance > 0 ? 'Saldo a pagar' : 'Monto a pagar'}: ${fmtBs((payment.remaining > 0 ? payment.remaining : payment.total) * bcvCache.rate)}\n`;
     }
     msg += `${PAYMENT_NOTE}\n`;
     msg += `\n¡Gracias por tu preferencia! 💕`;
@@ -2223,6 +2255,7 @@ let pendingLocalPush = false;
               <div class="ledger-total">${fmtMoney(p.total)}</div>
               <div class="ledger-sub">${p.remaining > 0 ? 'Debe ' + fmtMoney(p.remaining) : 'Pagado completo'}</div>
               <div class="ledger-icons">
+                ${p.remaining > 0 ? `<button class="icon-btn" title="Registrar abono" style="width:auto;padding:0 8px;font-size:12px;" onclick="C4nyShopApp.openAbono('${p.id}')">➕ Abonar</button>` : ''}
                 <button class="icon-btn" title="Factura" onclick="C4nyShopApp.showInvoice('${p.id}')">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
                 </button>
@@ -2277,6 +2310,7 @@ let pendingLocalPush = false;
           <div class="rem-actions">
             <a class="btn-mini wa" href="${waLink(client.phone, msg)}" target="_blank" rel="noopener">Recordar por WhatsApp</a>
             <button class="btn-mini" onclick="C4nyShopApp.showInvoice('${p.id}')">Factura</button>
+            <button class="btn-mini" onclick="C4nyShopApp.openAbono('${p.id}')">➕ Registrar abono</button>
             <button class="btn-mini" onclick="C4nyShopApp.markPaid('${p.id}')">Marcar cobrado</button>
           </div>
         </div>`;
@@ -2438,9 +2472,50 @@ let pendingLocalPush = false;
     showToast('Venta registrada');
   }
 
+  function initialAdvance(p){
+    const sum = (p.abonos || []).reduce((t, x) => t + (Number(x.amount) || 0), 0);
+    return Math.max((Number(p.advance) || 0) - sum, 0);
+  }
+  let abonoPayId = null;
+  function openAbono(paymentId){
+    const p = payments.find(p => p.id === paymentId);
+    if (!p) return;
+    abonoPayId = paymentId;
+    const client = clients.find(c => c.id === p.clientId) || { name: 'Cliente' };
+    $('abonoInfo').innerHTML = `<b>${escH(client.name)}</b><br>${escH(paymentServiceSummary(p))}<br>Factura: ${fmtMoney(p.total)} · Pagado: ${fmtMoney(p.advance)}<br><span style="color:#C6425E;font-weight:700;">Saldo actual: ${fmtMoney(p.remaining)}</span>`;
+    const hist = (p.abonos || []);
+    $('abonoHist').innerHTML = hist.length ? '<div style="font-size:12px;color:var(--muted);margin:8px 0 2px;">Abonos anteriores</div>' + hist.map((x,i) => `<div style="font-size:12.5px;display:flex;justify-content:space-between;"><span>${i+1}. ${formatDate(x.date)}</span><b>${fmtMoney(x.amount)}</b></div>`).join('') : '';
+    $('abonoAmount').value = '';
+    $('abonoNew').textContent = fmtMoney(p.remaining);
+    $('abonoOverlay').classList.add('show');
+  }
+  function updateAbonoPreview(){
+    const p = payments.find(p => p.id === abonoPayId); if (!p) return;
+    const v = parseFloat($('abonoAmount').value) || 0;
+    $('abonoNew').textContent = fmtMoney(Math.max(p.remaining - v, 0));
+  }
+  async function saveAbono(){
+    const p = payments.find(p => p.id === abonoPayId); if (!p) return;
+    const v = Math.round((parseFloat($('abonoAmount').value) || 0) * 100) / 100;
+    if (v <= 0){ showToast('Escribe el monto del abono'); return; }
+    const amount = Math.min(v, p.remaining);
+    p.abonos = (p.abonos || []).concat([{ id: 'ab_' + Date.now(), date: new Date().toISOString().slice(0,10), amount }]);
+    p.advance = Math.round(((Number(p.advance) || 0) + amount) * 100) / 100;
+    p.remaining = Math.max(Math.round((p.total - p.advance) * 100) / 100, 0);
+    if (p.remaining <= 0){ p.remaining = 0; p.reminderDate = ''; }
+    await savePayments();
+    $('abonoOverlay').classList.remove('show');
+    render();
+    showToast(p.remaining > 0 ? 'Abono registrado · saldo ' + fmtMoney(p.remaining) : 'Abono registrado · factura pagada completa');
+    showInvoice(p.id);
+  }
+
   async function markPaid(paymentId){
     const p = payments.find(p => p.id === paymentId);
-    if (p){ p.remaining = 0; p.reminderDate = ''; }
+    if (p){
+      if (p.remaining > 0){ p.abonos = (p.abonos || []).concat([{ id: 'ab_' + Date.now(), date: new Date().toISOString().slice(0,10), amount: p.remaining }]); p.advance = (Number(p.advance) || 0) + p.remaining; }
+      p.remaining = 0; p.reminderDate = '';
+    }
     await savePayments();
     render();
     showToast('Marcado como cobrado');
@@ -2784,6 +2859,10 @@ let pendingLocalPush = false;
   $('quickAddBtn').addEventListener('click', () => { quickAddFromPay = true; openSheet('new', null); });
   $('sheetClose').addEventListener('click', closeSheet);
   $('overlay').addEventListener('click', (e) => { if (e.target.id === 'overlay') closeSheet(); });
+  $('abonoClose').addEventListener('click', () => $('abonoOverlay').classList.remove('show'));
+  $('abonoAmount').addEventListener('input', updateAbonoPreview);
+  $('abonoFull').addEventListener('click', () => { const p = payments.find(p => p.id === abonoPayId); if (p){ $('abonoAmount').value = p.remaining; updateAbonoPreview(); } });
+  $('abonoSave').addEventListener('click', saveAbono);
   $('invoiceClose').addEventListener('click', () => $('invoiceOverlay').classList.remove('show'));
   $('invoiceOverlay').addEventListener('click', (e) => { if (e.target.id === 'invoiceOverlay') $('invoiceOverlay').classList.remove('show'); });
   $('saveClientBtn').addEventListener('click', saveClient);
@@ -2863,7 +2942,7 @@ let pendingLocalPush = false;
   $('downloadExcelBtn').addEventListener('click', downloadExcelLedger);
   $('restoreFileInput').addEventListener('change', (e) => restoreBackup(e.target.files[0]));
 
-  window.C4nyShopApp = { editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory, logout, republish };
+  window.C4nyShopApp = { openAbono, editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory, logout, republish };
 
   // Instalación como app (PWA)
   let deferredInstallPrompt = null;
