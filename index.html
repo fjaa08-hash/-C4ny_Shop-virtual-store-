@@ -528,7 +528,7 @@
       <div class="brand-name" style="flex:1; text-align:center; position:relative; z-index:1; line-height:1.1;"><div style="font-family:'Abril Fatface',Georgia,serif; font-weight:400; font-size:30px; background:linear-gradient(120deg,#7A1F95 0%,#A63FBF 50%,#8E2FA8 100%); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-fill-color:transparent; filter:drop-shadow(0 1px 1px rgba(255,255,255,.8));">C4ny_Shop</div><div style="display:inline-block; font-family:'Dancing Script',cursive; font-weight:700; font-size:21px; color:#FFE3FB; background:#2B0A3D; border:1.5px solid #FF7BF0; border-radius:20px; padding:0 14px 2px; text-shadow:0 0 4px #FFB3F6,0 0 10px #F04BFF,0 0 20px #C21BFF; box-shadow:0 0 6px #F04BFF,0 0 16px rgba(240,75,255,.65),inset 0 0 8px rgba(240,75,255,.45); margin-top:3px;">virtual store</div></div>
       <button class="install-btn" id="installBtn">📲 Instalar app</button>
     </div>
-    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.6</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
+    <div class="hdr-sub" style="text-align:center;">Tienda virtual · Catálogo, pedidos y clientes <span style="font-size:9px; opacity:.55; margin-left:4px;">v5.7</span> <button type="button" onclick="C4nyShopApp.logout()" style="margin-left:6px; font-size:11px; font-weight:700; color:#7A1F95; background:#fff; border:1.5px solid #C96BE0; border-radius:12px; padding:2px 10px; cursor:pointer; font-family:inherit;">🔒 Cerrar sesión</button> <span id="syncBadge" style="display:none; margin-left:6px; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px; vertical-align:middle;"></span></div>
     <div class="stats-row">
       <div class="stat"><b id="statClients">0</b><span>Clientes</span></div>
       <div class="stat"><b id="statPending">0</b><span>Pagos pendientes</span></div>
@@ -551,6 +551,10 @@
     <div class="search">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B6B6B" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
       <input id="searchClients" placeholder="Buscar por nombre o teléfono">
+    </div>
+    <div id="cleanBar" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 10px;">
+      <button type="button" class="btn-mini" id="cleanClientsBtn">🧹 Quitar clientes sin facturas</button>
+      <button type="button" class="btn-mini" id="undoCleanBtn" style="display:none;">↩ Deshacer limpieza</button>
     </div>
     <div id="clientList"></div>
   </div>
@@ -2115,6 +2119,44 @@ let pendingLocalPush = false;
     schedulePublish();
   }
 
+  const CLEAN_KEY = 'c4ny_respaldo_clientes';
+  function refreshUndoBtn(){
+    let has = false;
+    try{ has = !!localStorage.getItem(CLEAN_KEY); }catch(e){}
+    $('undoCleanBtn').style.display = has ? '' : 'none';
+  }
+  async function removeClients(ids){
+    try{ localStorage.setItem(CLEAN_KEY, JSON.stringify(clients.filter(c => ids.has(c.id)))); }catch(e){}
+    clients = clients.filter(c => !ids.has(c.id));
+    await saveClients();
+    render(); refreshUndoBtn();
+  }
+  async function cleanClients(){
+    const withInv = new Set(payments.map(p => p.clientId));
+    const ids = new Set(clients.filter(c => !withInv.has(c.id)).map(c => c.id));
+    if (!ids.size){ showToast('Todos tus clientes tienen facturas'); return; }
+    const keep = clients.length - ids.size;
+    if (!confirm('Se quitarán ' + ids.size + ' clientes que no tienen ninguna factura.\nSe quedarán ' + keep + ' clientes con facturas (con todo su historial).\n\n¿Continuar? Podrás deshacerlo con "Deshacer limpieza".')) return;
+    await removeClients(ids);
+    showToast(ids.size + ' clientes quitados');
+  }
+  async function deleteClient(id){
+    if (payments.some(p => p.clientId === id)){ showToast('Este cliente tiene facturas'); return; }
+    const c = clients.find(c => c.id === id); if (!c) return;
+    if (!confirm('¿Eliminar a ' + c.name + '?')) return;
+    await removeClients(new Set([id]));
+    showToast('Cliente eliminado');
+  }
+  async function undoClean(){
+    let back = [];
+    try{ back = JSON.parse(localStorage.getItem(CLEAN_KEY) || '[]'); }catch(e){}
+    if (!back.length){ refreshUndoBtn(); return; }
+    if (!confirm('¿Volver a agregar los ' + back.length + ' clientes que quitaste?')) return;
+    clients = mergeById(clients, back);
+    try{ localStorage.removeItem(CLEAN_KEY); }catch(e){}
+    await saveClients(); render(); refreshUndoBtn();
+    showToast(back.length + ' clientes restaurados');
+  }
   function clientVisits(clientId){
     return payments.filter(p => p.clientId === clientId).length;
   }
@@ -2165,6 +2207,7 @@ let pendingLocalPush = false;
               WhatsApp
             </a>
             <button class="btn-mini" onclick="C4nyShopApp.editClient('${c.id}')">Editar</button>
+            ${visits === 0 ? `<button class="btn-mini" onclick="C4nyShopApp.deleteClient('${c.id}')">Eliminar</button>` : ''}
           </div>
         </div>`;
     }).join('');
@@ -2866,6 +2909,9 @@ let pendingLocalPush = false;
   $('invoiceClose').addEventListener('click', () => $('invoiceOverlay').classList.remove('show'));
   $('invoiceOverlay').addEventListener('click', (e) => { if (e.target.id === 'invoiceOverlay') $('invoiceOverlay').classList.remove('show'); });
   $('saveClientBtn').addEventListener('click', saveClient);
+  $('cleanClientsBtn').addEventListener('click', cleanClients);
+  $('undoCleanBtn').addEventListener('click', undoClean);
+  refreshUndoBtn();
 
   // Elegir cliente desde los contactos del celular (solo Chrome/Android por ahora)
   const contactsSupported = ('contacts' in navigator) && ('ContactsManager' in window);
@@ -2942,7 +2988,7 @@ let pendingLocalPush = false;
   $('downloadExcelBtn').addEventListener('click', downloadExcelLedger);
   $('restoreFileInput').addEventListener('change', (e) => restoreBackup(e.target.files[0]));
 
-  window.C4nyShopApp = { openAbono, editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory, logout, republish };
+  window.C4nyShopApp = { deleteClient, openAbono, editClient, markPaid, deletePayment, editService, deleteService, editProduct, deleteProduct, changeProductImage, showInvoice, confirmOrder, rejectOrder, addCategory, logout, republish };
 
   // Instalación como app (PWA)
   let deferredInstallPrompt = null;
